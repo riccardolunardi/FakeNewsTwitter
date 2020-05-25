@@ -1,0 +1,92 @@
+---
+title: "FakeNews on Twitter"
+output: html_document
+editor_options: 
+  chunk_output_type: inline
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(cache = TRUE, message = FALSE, warning = FALSE)
+```
+
+DESCRIZIONE INIZIALE DEL PROBLEMA
+PONGO LE DOMANDE CHE HO IN TESTA
+
+## Come ho costruito il dataset
+
+SPIEGAZIONE DI COME HO COSTRUITO IL DATASET
+
+```{r}
+library(rtweet)
+#CODICE DI twitter_stream.R
+```
+
+UNIONE JSON
+
+```{r}
+#CODICE DELL'UNIONE DEI JSON
+r_tweet6 <- parse_stream("data/day2020-04-26.json")
+df3 <- rbind(r_tweet6)
+View(df3)
+
+```
+
+## Pulizia dei dati
+
+SPIEGAZIONE CAMPI UTILI
+
+```{r}
+campi_utili = c("user_id","status_id","created_at","screen_name","text", 
+                "urls_url", "urls_expanded_url","retweet_status_id","retweet_text",
+                "retweet_user_id","is_retweet")
+```
+
+AGGIUNTA CONTEGGIO RETWEET
+
+```{r}
+library(dplyr)
+
+#Ottenere solo retweet
+retweets <- df3 %>%
+  select(campi_utili,retweet_created_at) %>%
+  filter(is_retweet)
+
+
+#Ottenere solo tweet
+tweets <- df3 %>%
+  select(campi_utili, -retweet_user_id, -retweet_text, -retweet_status_id) %>%
+  filter(!is_retweet) 
+
+
+retweets_with_number <- retweets %>%
+  select(retweet_status_id,retweet_created_at,retweet_text,retweet_user_id,is_retweet) %>%
+  group_by(retweet_status_id) %>%
+  mutate(retweet_counter = n()) %>%
+  arrange(desc(retweet_counter))
+
+tweets_with_retweet_number <- full_join(tweets, retweets_with_number, by=c("status_id" = "retweet_status_id"))
+
+tweets_with_retweet_number <- tweets_with_retweet_number %>%
+  
+  mutate(tmp_tweet_text = ifelse(is.na(text), retweet_text, text),
+         tmp_created_at = ifelse(is.na(created_at), retweet_created_at, created_at),
+         tmp_tweet_user_id = ifelse(is.na(user_id), retweet_user_id, user_id)) %>%
+  
+  select(-user_id, -created_at, -text, -is_retweet.x, -is_retweet.y, -retweet_text, -retweet_user_id, -retweet_created_at) %>%
+  rename(user_id=tmp_tweet_user_id, text=tmp_tweet_text, created_at=tmp_created_at) %>%
+  arrange(status_id, user_id, created_at, screen_name, text)
+  
+tweets_with_retweet_number <- tweets_with_retweet_number[c(1,8,7,2,6,3,4,5)]
+
+View(tweets_with_retweet_number)
+
+
+```
+
+Se avessi usato `inner_join` avrei avuto come dataset risultante solo tweet che sono stati ritweetati durante il mio monitoraggio
+
+Se avessi usato `left_join` avrei avuto i tweet retweetati e quelli non retweetati
+
+Se avessi usato `right_join` avrei avuto solo tweet che sono stati condivisi e solo tweet che sono stati condivi prima del monitoraggio. 
+
+delle incogruenze con alcuni retweet. Infatti, se un tweet che è stato inviato prima del mio monitoraggio fosse stato ricondiviso durante la raccolta dei tweet, non sarei stato in grado di ottenere informazioni sul tweet iniziale
