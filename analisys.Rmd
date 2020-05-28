@@ -1,0 +1,145 @@
+---
+title: "FakeNews on Twitter"
+output: html_document
+editor_options: 
+  chunk_output_type: inline
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(cache = TRUE, message = FALSE, warning = FALSE)
+```
+
+DESCRIZIONE INIZIALE DEL PROBLEMA
+PONGO LE DOMANDE CHE HO IN TESTA
+
+## Come ho costruito il dataset
+
+SPIEGAZIONE DI COME HO COSTRUITO IL DATASET
+
+```{r}
+library(rtweet)
+library(stringr)
+#CODICE DI twitter_stream.R
+```
+
+UNIONE JSON
+
+```{r}
+#CODICE DELL'UNIONE DEI JSON
+get_tweets_by_date = function(start_date, leng) {
+  link1 = "data/day" #prefisso
+  
+  month=seq(as.Date(start_date), by = "day", length.out = leng) 
+  #Ottengo una sequenza di lunghezza leng di date con lo stesso formato di start_date 
+
+  links = str_c(link1, month, ".json") #Unione prefisso + data + suffisso
+  
+  links
+}
+
+#Sequenza dei giorni di aprile + doppione
+april=c(get_tweets_by_date("2020-04-22",9),("data/day2020-04-24-01.json"))
+
+#Sequenza dei giorni di maggio - 2 giorni
+may=get_tweets_by_date("2020-05-01",25)
+may=may[!may %in% c("data/day2020-05-24.json","data/day2020-05-05.json")]
+
+every_json_path = c(april, may)
+#every_json_path
+
+# Creo un vettore con lunghezza predefinita
+stream_analizzate <- vector("list",length(every_json_path))  
+
+for (i in 1:length(every_json_path)) {        
+  print(every_json_path[i])
+  stream_analizzate[[i]] <- parse_stream(every_json_path[i])          
+}
+
+#stream_analizzate[[1]]
+
+```
+
+parse_stream ritorna un dataframe da un file JSON generato dalo stream di Twitter.
+In questo ne genero uno per ogni stream effettuata e la salvo nella lista stream_analizzate
+Per unirle tutte in uno stesso dataframe, utilizzo do.call, che mi permette a sua volta di usare rbind su una lista
+
+```{r}
+#Applico rbind alla lista di dataframe
+everytweet <- do.call("rbind", stream_analizzate)
+
+#Dataframe completo
+View(everytweet)
+
+#Infomazioni sul dataframe
+ncol(everytweet)
+nrow(everytweet)
+object.size(everytweet)
+```
+
+## Pulizia dei dati
+
+SPIEGAZIONE CAMPI UTILI
+
+```{r}
+campi_utili = c("user_id","status_id","created_at","screen_name","text", 
+                "urls_url", "urls_expanded_url","retweet_status_id","retweet_text",
+                "retweet_user_id","is_retweet")
+```
+
+AGGIUNTA CONTEGGIO RETWEET
+SPIEGAZIONE RETWEETING
+
+```{r}
+library(dplyr)
+library(anytime)
+
+#Ottengo solo retweet
+retweets <- everytweets %>%
+  select(campi_utili,retweet_created_at) %>%
+  filter(is_retweet)
+
+
+#Ottengo solo tweet
+tweets <- everytweets %>%
+  select(campi_utili, -retweet_user_id, -retweet_text, -retweet_status_id) %>%
+  filter(!is_retweet) 
+
+
+#Dataframe di retweet con contatore aggiornato
+retweets_with_number <- retweets %>%
+  select(retweet_status_id,retweet_created_at,retweet_text,retweet_user_id,is_retweet) %>%
+  group_by(retweet_status_id) %>%
+  mutate(retweet_counter = n()) %>%
+  distinct(retweet_status_id, .keep_all=TRUE) %>%
+  arrange((retweet_counter)) 
+
+tweets_with_retweet_number <- full_join(tweets, retweets_with_number, by=c("status_id" = "retweet_status_id"))
+
+tweets_with_retweet_number <- tweets_with_retweet_number %>%
+  
+  mutate(tmp_tweet_text = ifelse(is.na(text), retweet_text, text),
+         tmp_created_at = anytime(ifelse(is.na(created_at), retweet_created_at, created_at)), 
+         #In questo passaggio la data viene convertita in UNIX time, lo riconverto in tempo "umano" per una lettura migliore dei dati
+         tmp_tweet_user_id = ifelse(is.na(user_id), retweet_user_id, user_id)) %>%
+  
+  #Elimino campi che non servono più (alcuni verranno rimpiazzati dei temporanei)
+  select(-user_id, -created_at, -text, -is_retweet.x, -is_retweet.y, -retweet_text, -retweet_user_id, -retweet_created_at) %>%
+  rename(user_id=tmp_tweet_user_id, text=tmp_tweet_text, created_at=tmp_created_at) %>%
+  arrange(status_id, user_id, created_at, screen_name, text)
+
+#Riordino le colonne
+tweets_with_retweet_number <- tweets_with_retweet_number[c(1,8,7,2,6,3,4,5)]
+
+#View(tweets_with_retweet_number)
+
+ncol(tweets_with_retweet_number)
+nrow(tweets_with_retweet_number)
+object.size(tweets_with_retweet_number)
+
+```
+
+Se avessi usato `inner_join` avrei avuto come dataset risultante solo tweet che sono stati ritweetati durante il mio monitoraggio
+Se avessi usato `left_join` avrei ottenuto i tweet retweetati e quelli non retweetati
+Se avessi usato `right_join` avrei avuto solo tweet che sono stati condivisi e solo tweet che sono stati condivisi prima del monitoraggio. 
+
+`full_join` evita incogruenze che si sarebbero potute incontrare con alcuni retweet. Infatti, se un tweet che è stato twittato prima del mio monitoraggio fosse stato ricondiviso durante la raccolta dei tweet, non sarei stato in grado di ottenere informazioni sul tweet iniziale.
