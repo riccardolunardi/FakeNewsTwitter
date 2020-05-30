@@ -94,13 +94,13 @@ library(dplyr)
 library(anytime)
 
 #Ottengo solo retweet
-retweets <- everytweets %>%
+retweets <- everytweet %>%
   select(campi_utili,retweet_created_at) %>%
   filter(is_retweet)
 
 
 #Ottengo solo tweet
-tweets <- everytweets %>%
+tweets <- everytweet %>%
   select(campi_utili, -retweet_user_id, -retweet_text, -retweet_status_id) %>%
   filter(!is_retweet) 
 
@@ -110,8 +110,9 @@ retweets_with_number <- retweets %>%
   select(retweet_status_id,retweet_created_at,retweet_text,retweet_user_id,is_retweet) %>%
   group_by(retweet_status_id) %>%
   mutate(retweet_counter = n()) %>%
+  
   distinct(retweet_status_id, .keep_all=TRUE) %>%
-  arrange((retweet_counter)) 
+  arrange(retweet_counter)
 
 tweets_with_retweet_number <- full_join(tweets, retweets_with_number, by=c("status_id" = "retweet_status_id"))
 
@@ -130,7 +131,10 @@ tweets_with_retweet_number <- tweets_with_retweet_number %>%
 #Riordino le colonne
 tweets_with_retweet_number <- tweets_with_retweet_number[c(1,8,7,2,6,3,4,5)]
 
-#View(tweets_with_retweet_number)
+tweets_with_retweet_number <- tweets_with_retweet_number %>% 
+  mutate(retweet_counter = ifelse(is.na(retweet_counter), 0, retweet_counter))
+
+View(tweets_with_retweet_number)
 
 ncol(tweets_with_retweet_number)
 nrow(tweets_with_retweet_number)
@@ -142,4 +146,24 @@ Se avessi usato `inner_join` avrei avuto come dataset risultante solo tweet che 
 Se avessi usato `left_join` avrei ottenuto i tweet retweetati e quelli non retweetati
 Se avessi usato `right_join` avrei avuto solo tweet che sono stati condivisi e solo tweet che sono stati condivisi prima del monitoraggio. 
 
-`full_join` evita incogruenze che si sarebbero potute incontrare con alcuni retweet. Infatti, se un tweet che è stato twittato prima del mio monitoraggio fosse stato ricondiviso durante la raccolta dei tweet, non sarei stato in grado di ottenere informazioni sul tweet iniziale.
+`full_join` invece evita incogruenze che si sarebbero potute incontrare con alcuni retweet. Infatti, se un tweet che è stato twittato prima del mio monitoraggio fosse stato ricondiviso durante la raccolta dei tweet, non sarei stato in grado di ottenere informazioni sul tweet iniziale.
+
+```{r}
+library(ggplot2)
+
+tweets_with_retweet_number <- tweets_with_retweet_number%>%
+  filter(as.Date(created_at)>"2020-04-22") %>%
+  mutate(created_at=substr(created_at,0,10))
+
+ggplot(tweets_with_retweet_number) +
+  geom_bar(aes(x = as.Date(created_at)), fill = "#1DA1F2") +
+  labs(title = "Quanto frequentemente vengono condivise le notizie?", x="Data del tweet", y="") +
+  scale_x_date(date_labels = "%m-%d", date_breaks = "2 days") +
+  theme_minimal()
+
+
+
+```
+
+
+
