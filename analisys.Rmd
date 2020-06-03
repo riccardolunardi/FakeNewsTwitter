@@ -186,7 +186,93 @@ nrow(tidy_tweets %>% filter(!is_affidabile && !is_retweet))
 nrow(tidy_tweets %>% filter(is_affidabile && !is_retweet))
 ```
 
+```{r}
 
+tweets_data_for_plotting_affidabili <- tidy_tweets %>%
+  filter(as.Date(created_at)>"2020-04-22") %>%
+  mutate(created_at=substr(created_at,0,10),
+         categoria=if_else(is_affidabile && is_retweet,
+                    "affidabile_retweet",
+                    if_else(is_affidabile && !is_retweet,
+                      "affidabile_tweet",
+                     if_else(!is_affidabile && is_retweet,
+                        "non_affidabile_retweet",
+                        "non_affidabile_tweet")))
+  )
+
+ggplot(tweets_data_for_plotting_affidabili) +
+  geom_bar(aes(x = as.Date(created_at), fill = categoria)) +
+  labs(title = "Quanto frequentemente vengono condivise le notizie?", x="Data del tweet", y="n° di tweet") +
+  scale_fill_manual(values=c("#17bf63", "#1da1f2", "#f2a71d", "#f24f1d"), name="Tweets", labels=c("Tweet","Retweet","Retweet di notizie non affidabili","Tweet di notizie non affidabili")) +
+  scale_x_date(date_labels = "%m-%d", date_breaks = "2 days") +
+  theme_minimal()
+
+
+
+```
+
+
+
+```{r}
+
+library(TextWiller)
+
+tweets_with_retweet_number_upd <- tweets_with_retweet_number %>%
+  mutate(urls_url = ifelse(as.character(urls_url)=="NULL", NA, sapply(urls_url, tolower))) %>%
+  rowwise() %>% 
+  mutate(is_affidabile = !any(urls_url %in% siti_non_affidabili))
+
+tweets_with_retweet_number_upd <- tweets_with_retweet_number_upd %>% 
+  mutate(sentiment = sentiment(text))
+
+#View(tweets_with_retweet_number_upd)
+
+tweets_with_retweet_number_upd_plot <- tweets_with_retweet_number_upd %>%
+  filter(as.Date(created_at)>"2020-04-22")
+
+ggplot(tweets_with_retweet_number_upd_plot) +
+  geom_bar(aes(x = sentiment, fill = is_affidabile), position = position_dodge()) +
+  labs(title = "Sentiment Analysis", x="Sentiment", y="n° di tweet") +
+  scale_x_continuous(breaks=-1:1, labels=c("Negativo (-1)", "Neutrale (0)", "Positivo (1)")) +
+  scale_fill_manual(values=c("#f2a71d", "#1da1f2"), name="Tweets", labels=c("Non affidabili","Affidabili")) +
+  theme_minimal()
+
+#sprintf("Positivi: %d, Neutrali: %d, Negativi: %d",nrow(tweets_with_retweet_number_upd %>% filter(sentiment==1, !is_affidabile)), 
+#      nrow(tweets_with_retweet_number_upd %>% filter(sentiment==0, !is_affidabile)), 
+#      nrow(tweets_with_retweet_number_upd %>% filter(sentiment==-1, !is_affidabile)))
+
+
+```
 
 VOGLIO FARE UN GRAFICO CON LE NOTIZIE FAKE PIù RETWITTATE DOVE OGNI TWEET E' UN CERCHIO. PIù GRANDE è IL CERCHIO PIù è STATA RETWITTATA
 IL CERCHIO CONTIENE IL TESTO DEL TWEET L'HASHTAG
+
+```{r}
+library(tidytext)
+library(wordcloud)
+library(tm)
+
+stop_words_extra = c("t.co","https","lkhl0j1pqm","wgyypsdiqo","wgyypsdiqo","lkhl0ike2c","tpm3unabk9","amp","2")
+stop_words_vector= append(stop_words_extra, stopwords(kind = "it"), after = length(stop_words_extra))
+
+stop_words_ita = data.frame(word=stop_words_vector)
+
+text_mining_tweets <- tweets_with_retweet_number_upd %>%
+  unnest_tokens(word, text) %>%
+  anti_join(stop_words_ita)
+
+View(text_mining_tweets)
+
+text_mining_tweets %>%
+  count(word, sort = TRUE)
+
+
+text_mining_tweets %>%
+  count(word, sort = TRUE) %>%
+  #filter(word!="coronavirus") %>%
+  with(wordcloud(word, n, max.words = 120, rot.per = 0, random.order=FALSE, random.color=FALSE, colors=brewer.pal(8, "Dark2")))
+  
+
+```
+
+
