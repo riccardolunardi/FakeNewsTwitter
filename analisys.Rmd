@@ -41,7 +41,7 @@ get_tweets_by_date = function(start_date, leng) {
 april=c(get_tweets_by_date("2020-04-22",9),("data/day2020-04-24-01.json"))
 
 #Sequenza dei giorni di maggio - 2 giorni
-may=get_tweets_by_date("2020-05-01",25)
+may=get_tweets_by_date("2020-05-01",29)
 may=may[!may %in% c("data/day2020-05-24.json","data/day2020-05-05.json")]
 
 every_json_path = c(april, may)
@@ -68,7 +68,7 @@ Per unirle tutte in uno stesso dataframe, utilizzo do.call, che mi permette a su
 everytweet <- do.call("rbind", stream_analizzate)
 
 #Dataframe completo
-View(everytweet)
+#View(everytweet)
 
 #Infomazioni sul dataframe
 ncol(everytweet)
@@ -94,15 +94,23 @@ library(dplyr)
 library(anytime)
 
 #Ottengo solo retweet
-retweets <- everytweets %>%
+retweets <- everytweet %>%
   select(campi_utili,retweet_created_at) %>%
   filter(is_retweet)
 
 
 #Ottengo solo tweet
-tweets <- everytweets %>%
+tweets <- everytweet %>%
   select(campi_utili, -retweet_user_id, -retweet_text, -retweet_status_id) %>%
   filter(!is_retweet) 
+
+clean_tweets = everytweet %>%
+  select(campi_utili,retweet_created_at)
+
+ncol(clean_tweets)
+nrow(clean_tweets)
+object.size(clean_tweets)
+
 
 
 #Dataframe di retweet con contatore aggiornato
@@ -111,24 +119,25 @@ retweets_with_number <- retweets %>%
   group_by(retweet_status_id) %>%
   mutate(retweet_counter = n()) %>%
   distinct(retweet_status_id, .keep_all=TRUE) %>%
-  arrange((retweet_counter)) 
+  arrange(retweet_counter)
 
 tweets_with_retweet_number <- full_join(tweets, retweets_with_number, by=c("status_id" = "retweet_status_id"))
 
 tweets_with_retweet_number <- tweets_with_retweet_number %>%
-  
   mutate(tmp_tweet_text = ifelse(is.na(text), retweet_text, text),
          tmp_created_at = anytime(ifelse(is.na(created_at), retweet_created_at, created_at)), 
          #In questo passaggio la data viene convertita in UNIX time, lo riconverto in tempo "umano" per una lettura migliore dei dati
          tmp_tweet_user_id = ifelse(is.na(user_id), retweet_user_id, user_id)) %>%
-  
   #Elimino campi che non servono più (alcuni verranno rimpiazzati dei temporanei)
   select(-user_id, -created_at, -text, -is_retweet.x, -is_retweet.y, -retweet_text, -retweet_user_id, -retweet_created_at) %>%
   rename(user_id=tmp_tweet_user_id, text=tmp_tweet_text, created_at=tmp_created_at) %>%
   arrange(status_id, user_id, created_at, screen_name, text)
 
+
 #Riordino le colonne
-tweets_with_retweet_number <- tweets_with_retweet_number[c(1,8,7,2,6,3,4,5)]
+tweets_with_retweet_number <- tweets_with_retweet_number[c(1,8,7,2,6,3,4,5)] %>%
+  mutate(retweet_counter = ifelse(is.na(retweet_counter), 0, retweet_counter))
+
 
 #View(tweets_with_retweet_number)
 
@@ -142,4 +151,128 @@ Se avessi usato `inner_join` avrei avuto come dataset risultante solo tweet che 
 Se avessi usato `left_join` avrei ottenuto i tweet retweetati e quelli non retweetati
 Se avessi usato `right_join` avrei avuto solo tweet che sono stati condivisi e solo tweet che sono stati condivisi prima del monitoraggio. 
 
-`full_join` evita incogruenze che si sarebbero potute incontrare con alcuni retweet. Infatti, se un tweet che è stato twittato prima del mio monitoraggio fosse stato ricondiviso durante la raccolta dei tweet, non sarei stato in grado di ottenere informazioni sul tweet iniziale.
+`full_join` invece evita incogruenze che si sarebbero potute incontrare con alcuni retweet. Infatti, se un tweet che è stato twittato prima del mio monitoraggio fosse stato ricondiviso durante la raccolta dei tweet, non sarei stato in grado di ottenere informazioni sul tweet iniziale.
+
+```{r}
+library(ggplot2)
+
+tweets_data_for_plotting <- clean_tweets %>%
+  filter(as.Date(created_at)>"2020-04-22") %>%
+  mutate(created_at=substr(created_at,0,10))
+  
+ggplot(tweets_data_for_plotting) +
+  geom_bar(aes(x = as.Date(created_at), fill = is_retweet)) +
+  labs(title = "Quanto frequentemente vengono condivise le notizie?", x="Data del tweet", y="n° di tweet") +
+  scale_fill_manual(values=c("#1da1f2","#17bf63"), name="Tweets", labels=c("Tweet","Retweet")) +
+  scale_x_date(date_labels = "%m-%d", date_breaks = "2 days") +
+  theme_minimal()
+
+
+
+```
+
+```{r}
+link_siti_non_affidabili <- "https://raw.githubusercontent.com/riccardolunardi/ProgettoFondamenti/master/websites/websites_fakenews.txt?token=AIZMNO2NX3OX3NUX4B7E7OK63UKSU"
+
+siti_non_affidabili <- read.delim(link_siti_non_affidabili, sep = "\n", header = FALSE)
+siti_non_affidabili <- as.vector(t(sapply(siti_non_affidabili, tolower))) #t trasforma il dataset in una matrice
+
+tidy_tweets <- clean_tweets %>%
+  mutate(urls_url = ifelse(as.character(urls_url)=="NULL", NA, sapply(urls_url, tolower))) %>%
+  rowwise() %>% 
+  mutate(is_affidabile = !any(urls_url %in% siti_non_affidabili))
+
+nrow(tidy_tweets %>% filter(!is_affidabile && !is_retweet))
+nrow(tidy_tweets %>% filter(is_affidabile && !is_retweet))
+```
+
+```{r}
+
+tweets_data_for_plotting_affidabili <- tidy_tweets %>%
+  filter(as.Date(created_at)>"2020-04-22") %>%
+  mutate(created_at=substr(created_at,0,10),
+         categoria=if_else(is_affidabile && is_retweet,
+                    "affidabile_retweet",
+                    if_else(is_affidabile && !is_retweet,
+                      "affidabile_tweet",
+                     if_else(!is_affidabile && is_retweet,
+                        "non_affidabile_retweet",
+                        "non_affidabile_tweet")))
+  )
+
+ggplot(tweets_data_for_plotting_affidabili) +
+  geom_bar(aes(x = as.Date(created_at), fill = categoria)) +
+  labs(title = "Quanto frequentemente vengono condivise le notizie?", x="Data del tweet", y="n° di tweet") +
+  scale_fill_manual(values=c("#17bf63", "#1da1f2", "#f2a71d", "#f24f1d"), name="Tweets", labels=c("Tweet","Retweet","Retweet di notizie non affidabili","Tweet di notizie non affidabili")) +
+  scale_x_date(date_labels = "%m-%d", date_breaks = "2 days") +
+  theme_minimal()
+
+
+
+```
+
+
+
+```{r}
+
+library(TextWiller)
+
+tweets_with_retweet_number_upd <- tweets_with_retweet_number %>%
+  mutate(urls_url = ifelse(as.character(urls_url)=="NULL", NA, sapply(urls_url, tolower))) %>%
+  rowwise() %>% 
+  mutate(is_affidabile = !any(urls_url %in% siti_non_affidabili))
+
+tweets_with_retweet_number_upd <- tweets_with_retweet_number_upd %>% 
+  mutate(sentiment = sentiment(text))
+
+#View(tweets_with_retweet_number_upd)
+
+tweets_with_retweet_number_upd_plot <- tweets_with_retweet_number_upd %>%
+  filter(as.Date(created_at)>"2020-04-22")
+
+ggplot(tweets_with_retweet_number_upd_plot) +
+  geom_bar(aes(x = sentiment, fill = is_affidabile), position = position_dodge()) +
+  labs(title = "Sentiment Analysis", x="Sentiment", y="n° di tweet") +
+  scale_x_continuous(breaks=-1:1, labels=c("Negativo (-1)", "Neutrale (0)", "Positivo (1)")) +
+  scale_fill_manual(values=c("#f2a71d", "#1da1f2"), name="Tweets", labels=c("Non affidabili","Affidabili")) +
+  theme_minimal()
+
+#sprintf("Positivi: %d, Neutrali: %d, Negativi: %d",nrow(tweets_with_retweet_number_upd %>% filter(sentiment==1, !is_affidabile)), 
+#      nrow(tweets_with_retweet_number_upd %>% filter(sentiment==0, !is_affidabile)), 
+#      nrow(tweets_with_retweet_number_upd %>% filter(sentiment==-1, !is_affidabile)))
+
+
+```
+
+VOGLIO FARE UN GRAFICO CON LE NOTIZIE FAKE PIù RETWITTATE DOVE OGNI TWEET E' UN CERCHIO. PIù GRANDE è IL CERCHIO PIù è STATA RETWITTATA
+IL CERCHIO CONTIENE IL TESTO DEL TWEET L'HASHTAG
+
+```{r}
+library(tidytext)
+library(wordcloud)
+library(tm)
+
+stop_words_extra = c("t.co","https","lkhl0j1pqm","wgyypsdiqo","wgyypsdiqo","lkhl0ike2c","tpm3unabk9","amp","2")
+stop_words_vector= append(stop_words_extra, stopwords(kind = "it"), after = length(stop_words_extra))
+
+stop_words_ita = data.frame(word=stop_words_vector)
+
+text_mining_tweets <- tweets_with_retweet_number_upd %>%
+  unnest_tokens(word, text) %>%
+  anti_join(stop_words_ita)
+
+View(text_mining_tweets)
+
+text_mining_tweets %>%
+  count(word, sort = TRUE)
+
+
+text_mining_tweets %>%
+  count(word, sort = TRUE) %>%
+  #filter(word!="coronavirus") %>%
+  with(wordcloud(word, n, max.words = 120, rot.per = 0, random.order=FALSE, random.color=FALSE, colors=brewer.pal(8, "Dark2")))
+  
+
+```
+
+
