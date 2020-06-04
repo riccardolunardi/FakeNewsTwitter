@@ -21,6 +21,7 @@ token <- create_token(
 link_siti_non_affidabili <- "https://raw.githubusercontent.com/riccardolunardi/ProgettoFondamenti/master/websites/websites_fakenews.txt?token=AIZMNO2NX3OX3NUX4B7E7OK63UKSU"
 siti_non_affidabili <- read.delim(link_siti_non_affidabili, sep = "\n", header = FALSE)
 siti_non_affidabili <- as.vector(t(sapply(siti_non_affidabili, tolower))) #t trasforma il dataset in una matrice
+siti_non_affidabili <- paste(siti_non_affidabili, collapse = ', ')
 
 stream_tweets(
   siti_non_affidabili,
