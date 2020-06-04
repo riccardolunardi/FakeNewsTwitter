@@ -41,10 +41,13 @@ get_tweets_by_date = function(start_date, leng) {
 april=c(get_tweets_by_date("2020-04-22",9),("data/day2020-04-24-01.json"))
 
 #Sequenza dei giorni di maggio - 2 giorni
-may=get_tweets_by_date("2020-05-01",29)
+may=get_tweets_by_date("2020-05-01",31)
 may=may[!may %in% c("data/day2020-05-24.json","data/day2020-05-05.json")]
 
-every_json_path = c(april, may)
+#Sequenza dei giorni di aprile + doppione
+june=get_tweets_by_date("2020-06-01",3)
+
+every_json_path = c(april, may, june)
 #every_json_path
 
 # Creo un vettore con lunghezza predefinita
