@@ -23,8 +23,16 @@ siti_non_affidabili <- read.delim(link_siti_non_affidabili, sep = "\n", header =
 siti_non_affidabili <- as.vector(t(sapply(siti_non_affidabili, tolower))) #t trasforma il dataset in una matrice
 siti_non_affidabili <- paste(siti_non_affidabili, collapse = ', ')
 
+link_siti_affidabili <- "https://raw.githubusercontent.com/riccardolunardi/ProgettoFondamenti/master/websites/websites_realnews.txt?token=AIZMNO5R4QGQWH5DM3NBJQK64YISE"
+siti_affidabili <- read.delim(link_siti_affidabili, sep = "\n", header = FALSE)
+siti_affidabili <- as.vector(t(sapply(siti_affidabili, tolower))) #t trasforma il dataset in una matrice
+siti_affidabili <- paste(siti_affidabili, collapse = ', ')
+
+siti=paste(siti_affidabili,siti_non_affidabili, collapse = ', ')
+siti
+
 stream_tweets(
-  siti_non_affidabili,
+  siti,
   timeout = 60*60*24*7,
   file_name = paste("data/day", Sys.Date(), sep=""),
   parse = TRUE
