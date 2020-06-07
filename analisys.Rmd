@@ -114,6 +114,7 @@ ncol(clean_tweets)
 nrow(clean_tweets)
 object.size(clean_tweets)
 
+#View(everytweet)
 
 
 #Dataframe di retweet con contatore aggiornato
@@ -267,6 +268,7 @@ text_mining_tweets <- tweets_with_retweet_number_upd %>%
 View(text_mining_tweets)
 
 text_mining_tweets %>%
+  #filter("#" %in% word) %>%
   count(word, sort = TRUE)
 
 
