@@ -45,7 +45,7 @@ may=get_tweets_by_date("2020-05-01",31)
 may=may[!may %in% c("data/day2020-05-24.json","data/day2020-05-05.json")]
 
 #Sequenza dei giorni di aprile + doppione
-june=get_tweets_by_date("2020-06-01",7)
+june=get_tweets_by_date("2020-06-01",9)
 
 every_json_path = c(april, may, june)
 #every_json_path
@@ -143,7 +143,7 @@ tweets_with_retweet_number <- tweets_with_retweet_number[c(1,8,7,2,6,3,4,5)] %>%
   mutate(retweet_counter = ifelse(is.na(retweet_counter), 0, retweet_counter))
 
 
-#View(tweets_with_retweet_number)
+View(tweets_with_retweet_number)
 
 ncol(tweets_with_retweet_number)
 nrow(tweets_with_retweet_number)
@@ -176,7 +176,7 @@ ggplot(tweets_data_for_plotting) +
 ```
 
 ```{r}
-link_siti_non_affidabili <- "https://raw.githubusercontent.com/riccardolunardi/ProgettoFondamenti/master/websites/websites_fakenews.txt?token=AIZMNO2NX3OX3NUX4B7E7OK63UKSU"
+link_siti_non_affidabili <- "https://raw.githubusercontent.com/riccardolunardi/ProgettoFondamenti/master/websites/websites_fakenews.txt?token=AIZMNOZGHQAVE6HUPP4FYNK65B5ME"
 
 siti_non_affidabili <- read.delim(link_siti_non_affidabili, sep = "\n", header = FALSE)
 siti_non_affidabili <- as.vector(t(sapply(siti_non_affidabili, tolower))) #t trasforma il dataset in una matrice
@@ -211,6 +211,7 @@ ggplot(tweets_data_for_plotting_affidabili) +
   scale_x_date(date_labels = "%m-%d", date_breaks = "2 days") +
   theme_minimal()
 
+View(tweets_data_for_plotting_affidabili %>% filter(!is_affidabile))
 
 
 ```
