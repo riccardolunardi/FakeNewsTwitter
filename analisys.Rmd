@@ -45,7 +45,7 @@ may=get_tweets_by_date("2020-05-01",31)
 may=may[!may %in% c("data/day2020-05-24.json","data/day2020-05-05.json")]
 
 #Sequenza dei giorni di aprile + doppione
-june=get_tweets_by_date("2020-06-01",9)
+june=get_tweets_by_date("2020-06-01",14)
 
 every_json_path = c(april, may, june)
 #every_json_path

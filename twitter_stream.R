@@ -18,12 +18,20 @@ token <- create_token(
 ## Raccogli lo stream di tweet per un giorno. Readr velocizza il processo di parsing
 
 
+<<<<<<< HEAD
 link_siti_non_affidabili <- "https://raw.githubusercontent.com/riccardolunardi/ProgettoFondamenti/master/websites/websites_fakenews.txt?token=AIZMNOY7PEF2AIGEHZCBUJK645AEC"
+=======
+link_siti_non_affidabili <- "https://raw.githubusercontent.com/riccardolunardi/ProgettoFondamenti/master/websites/websites_fakenews.txt?token=AIZMNOY7P7OK7FSYKXAVXVC66CRQQ"
+>>>>>>> c90a58ee620a5a20e3185e9b8813e1be5f334565
 siti_non_affidabili <- read.delim(link_siti_non_affidabili, sep = "\n", header = FALSE)
 siti_non_affidabili <- as.vector(t(sapply(siti_non_affidabili, tolower))) #t trasforma il dataset in una matrice
 siti_non_affidabili <- paste(siti_non_affidabili, collapse = ', ')
 
+<<<<<<< HEAD
 link_siti_affidabili <- "https://raw.githubusercontent.com/riccardolunardi/ProgettoFondamenti/master/websites/websites_realnews.txt?token=AIZMNOZ3OHEB64XVRGDWJRS645AH6"
+=======
+link_siti_affidabili <- "https://raw.githubusercontent.com/riccardolunardi/ProgettoFondamenti/master/websites/websites_realnews.txt?token=AIZMNOY3GQ5JYNLQARBWNLK66CRR2"
+>>>>>>> c90a58ee620a5a20e3185e9b8813e1be5f334565
 siti_affidabili <- read.delim(link_siti_affidabili, sep = "\n", header = FALSE)
 siti_affidabili <- as.vector(t(sapply(siti_affidabili, tolower))) #t trasforma il dataset in una matrice
 siti_affidabili <- paste(siti_affidabili, collapse = ', ')
