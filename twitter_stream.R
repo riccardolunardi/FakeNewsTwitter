@@ -18,12 +18,12 @@ token <- create_token(
 ## Raccogli lo stream di tweet per un giorno. Readr velocizza il processo di parsing
 
 
-link_siti_non_affidabili <- "https://raw.githubusercontent.com/riccardolunardi/ProgettoFondamenti/master/websites/websites_fakenews.txt?token=AIZMNO2NX3OX3NUX4B7E7OK63UKSU"
+link_siti_non_affidabili <- "https://raw.githubusercontent.com/riccardolunardi/ProgettoFondamenti/master/websites/websites_fakenews.txt?token=AIZMNOY7P7OK7FSYKXAVXVC66CRQQ"
 siti_non_affidabili <- read.delim(link_siti_non_affidabili, sep = "\n", header = FALSE)
 siti_non_affidabili <- as.vector(t(sapply(siti_non_affidabili, tolower))) #t trasforma il dataset in una matrice
 siti_non_affidabili <- paste(siti_non_affidabili, collapse = ', ')
 
-link_siti_affidabili <- "https://raw.githubusercontent.com/riccardolunardi/ProgettoFondamenti/master/websites/websites_realnews.txt?token=AIZMNO5R4QGQWH5DM3NBJQK64YISE"
+link_siti_affidabili <- "https://raw.githubusercontent.com/riccardolunardi/ProgettoFondamenti/master/websites/websites_realnews.txt?token=AIZMNOY3GQ5JYNLQARBWNLK66CRR2"
 siti_affidabili <- read.delim(link_siti_affidabili, sep = "\n", header = FALSE)
 siti_affidabili <- as.vector(t(sapply(siti_affidabili, tolower))) #t trasforma il dataset in una matrice
 siti_affidabili <- paste(siti_affidabili, collapse = ', ')
