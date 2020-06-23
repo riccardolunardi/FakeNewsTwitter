@@ -9,20 +9,74 @@ editor_options:
 knitr::opts_chunk$set(cache = TRUE, message = FALSE, warning = FALSE)
 ```
 
-DESCRIZIONE INIZIALE DEL PROBLEMA
-PONGO LE DOMANDE CHE HO IN TESTA
+Durante il periodo di lockdown mi sono chiesto quanto le fake news influenzassero le opinioni delle persone e quanto frequenti fossero le condivisioni di notizie false o ingannevoli sul Web. Per questo, come progetto, ho scelto di prendere in causa Twitter e raccogliere più informazioni possibili su i tweet condivisi per rispondere ad alcune domande che mi sono posto.
+
+Perché Twitter?
+Ho scelto Twitter perché permette, al contrario di Facebook, di utilizzare alcune API per la ricerca/streaming di tweet, che ha permesso la raccolta dei dati. 
+
+Come faccio ad essere sicuro che siano fake news?
+Putroppo non esiste una maniera universale per capire se una notizia è fake oppure no. Io mi sono basato sulle "blacklist" di [BUTAC.it](https://www.butac.it/the-black-list/) e di [Bufale.net](https://www.bufale.net/the-black-list-la-lista-nera-del-web/), che riportano siti di notizie che hanno spesso condiviso notizie false, modificate in base alle ideologie o senza allegare alcun tipo di fonte.
+
+
+Le domande che mi sono posto sono:
+
+- Quanto spesso vengono condivise fake news su Twitter? Quanto vengono retweetate? EChe rapporto c'è tra notizie ingannevoli e notizie provenienti da siti affidabili?
+- Le notizie che considero false, che tipo di "sentiment" esprimono?
+- Quali sono stati gli argomenti più trattati da siti di news non affidabili?
+
+Prima di poter rispondere a questi questiti, ho dovuto raccogliere i dati e "ripulirli" per cercare di ridurre le dimesioni del mio dataset
 
 ## Come ho costruito il dataset
 
-SPIEGAZIONE DI COME HO COSTRUITO IL DATASET
+Il dataset è stato costruito utilizzando la libreria [rtweet](https://rtweet.info/), che permette di interfacciarsi con le API di Twitter tramite R.
+In particolare ho usato l'endpoint [statuses/filter](https://developer.twitter.com/en/docs/tweets/filter-realtime/api-reference/post-statuses-filter), che ritorna, per un determinato periodo di tempo, tweet che rispettano alcuni parametri preimpostati.
+I tweet ritornati non sono tutti i tweet che rispettano i parametri, ma solo un campione. Quindi non abbiamo i dati assoluti, ma una buona rappresentazione di essi.
 
-```{r}
+```{r Streaming, eval=FALSE, message=FALSE, warning=FALSE, include=FALSE}
 library(rtweet)
 library(stringr)
-#CODICE DI twitter_stream.R
+library(readr)
+
+api_key <- "your_api_key"
+api_secret_key <- "your_api_secret_key"
+access_token <- "your_access_token"
+access_token_secret <- "your_access_token_secret"
+
+## Autenticazione via API keys
+token <- create_token(
+  app = "FakeNewsUniUd",
+  consumer_key = api_key,
+  consumer_secret = api_secret_key,
+  access_token = access_token,
+  access_secret = access_token_secret)
+
+## Raccogli lo stream di tweet per un giorno. Readr velocizza il processo di parsing
+
+link_siti_non_affidabili <- "https://raw.githubusercontent.com/riccardolunardi/ProgettoFondamenti/master/websites/websites_fakenews.txt?token=AIZMNO53XQFIZ56OI7BYLOS66CTGM"
+siti_non_affidabili <- read.delim(link_siti_non_affidabili, sep = "\n", header = FALSE)
+siti_non_affidabili <- as.vector(t(sapply(siti_non_affidabili, tolower))) #t trasforma il dataset in una matrice
+siti_non_affidabili <- paste(siti_non_affidabili, collapse = ', ')
+
+link_siti_affidabili <- "https://raw.githubusercontent.com/riccardolunardi/ProgettoFondamenti/master/websites/websites_realnews.txt?token=AIZMNO7S4HTMULYIAU4S5IS66CTHC"
+siti_affidabili <- read.delim(link_siti_affidabili, sep = "\n", header = FALSE)
+siti_affidabili <- as.vector(t(sapply(siti_affidabili, tolower))) #t trasforma il dataset in una matrice
+siti_affidabili <- paste(siti_affidabili, collapse = ', ')
+
+siti=paste(siti_affidabili,siti_non_affidabili, collapse = ', ')
+#siti
+
+stream_tweets(
+  siti,
+  timeout = 60*60*24*7, #Una settimana
+  file_name = paste("data/day", Sys.Date(), sep=""),
+  parse = TRUE
+)
+
 ```
 
-UNIONE JSON
+Il file prodotto da _stream_tweets_ è un file che raccoglie un JSON per tweet raccolto. Avendo avuto solo quale mese per raccogliere i dati, ogni giorno facevo ripartire lo streaming per evitare possibili bug o stalli dello script, per cui alla fine ho ottenuto un insieme di JSON, ogniuno rinominato con il giorno in cui è stato creato quel file.
+
+Per trasformare il JSON in un dataframe ho utilizzato la funzione parse_stream di rtweet, che automatizza questo processo. La funzione però, accetta solo un file per volta, quindi ho dovuto creare un array in cui ogni elemento era un path di JSON e iterare la cosidetta funzione per ogni file.
 
 ```{r}
 #CODICE DELL'UNIONE DEI JSON
@@ -42,13 +96,13 @@ april=c(get_tweets_by_date("2020-04-22",9),("data/day2020-04-24-01.json"))
 
 #Sequenza dei giorni di maggio - 2 giorni
 may=get_tweets_by_date("2020-05-01",31)
-may=may[!may %in% c("data/day2020-05-24.json","data/day2020-05-05.json")]
+may=may[!may %in% c("data/day2020-05-24.json","data/day2020-05-05.json")] #Tolgo questi due giorni per un errore di esecuzione dello script
 
 #Sequenza dei giorni di aprile + doppione
-june=get_tweets_by_date("2020-06-01",14)
+june=get_tweets_by_date("2020-06-01",22)
+june=june[!june %in% c("data/day2020-06-19.json")] #Tolgo questo giorno perché è incluso nel file day2020-06-19.json
 
-every_json_path = c(april, may, june)
-#every_json_path
+every_json_path = c(april, may, june) #Unione dei vettori
 
 # Creo un vettore con lunghezza predefinita
 stream_analizzate <- vector("list",length(every_json_path))  
@@ -62,26 +116,33 @@ for (i in 1:length(every_json_path)) {
 
 ```
 
-parse_stream ritorna un dataframe da un file JSON generato dalo stream di Twitter.
-In questo ne genero uno per ogni stream effettuata e la salvo nella lista stream_analizzate
-Per unirle tutte in uno stesso dataframe, utilizzo do.call, che mi permette a sua volta di usare rbind su una lista
+Adesso, avendo la lista _stream_analizzate_ contenente un dataset per ogni giorno, per
+Per unirle tutte in uno stesso dataframe, utilizzo do.call, che mi permette di usare rbind su una lista
 
 ```{r}
 #Applico rbind alla lista di dataframe
 everytweet <- do.call("rbind", stream_analizzate)
 
 #Dataframe completo
-#View(everytweet)
+View(everytweet)
 
 #Infomazioni sul dataframe
 ncol(everytweet)
 nrow(everytweet)
 object.size(everytweet)
 ```
+Come possiamo notare ci sono molte colonne e altrettante righe nel dataset, rendendolo così molto pesante, sui 90MB.
+Conviene cercare di ridurlo di dimesioni per agevolare l'elaborazione.
+
+NOTE:
+La raccolta dei dati è sarebbe stata possibile anche attraverso l'endpoint [search](https://developer.twitter.com/en/docs/tweets/search/overview), il quale avrebbe ritornato tutti (e quindi non solo un campione) i tweet che rispettavano i parametri dati. Nonostante questi vantaggi, non ho utilizzato questo metodo perché l'API free aveva troppe limitazioni. Infatti ne esistono più versioni: SandBox, Premium e Enterprise. La versione SandBox, quella gratuita, permette di ottenere tweet vecchi di massimo una settimana e con un massimo di 100. Questo avrebbe complicato notevolemente lo sviluppo di uno script.
+Le versioni Premium ed Enterpise hanno invece limiti più ampi, [ma vengono a costare anche parecchio in base all'uso che se ne fa](https://developer.twitter.com/en/premium-apis#:~:text=To%20ensure%20it's%20easy%20to,%2499%2Fmonth%20for%20100%20requests.)
 
 ## Pulizia dei dati
 
-SPIEGAZIONE CAMPI UTILI
+Tra i 90 campi del dataset, solo alcuni di questi sono utili a rispondere alle domande poste inizialmente. Rimuoveremo infatti tutti i campi realtivi alle immagini, agli hashtag, ai follower, ai favorites, etc...
+
+_campi\_utili_ conterrà solo gli attributi necessari
 
 ```{r}
 campi_utili = c("user_id","status_id","created_at","screen_name","text", 
@@ -89,23 +150,15 @@ campi_utili = c("user_id","status_id","created_at","screen_name","text",
                 "retweet_user_id","is_retweet")
 ```
 
-AGGIUNTA CONTEGGIO RETWEET
-SPIEGAZIONE RETWEETING
+L'obiettivo è quello di avere 2 dataset:
+(1) Uno in cui elimino solo le colonne che non servono
+(2) Uno in cui abbiamo solo i tweet condivisi, con un nuovo attributo che specifica quanto è stato retweetato quel tweet.
+
+Dobbiamo effettuare noi il conteggio dei retweet perché lo streaming ritorna il numero corrente di retweet, che ovviamente all'inizio è 0. Avendo anche i retweet, però, possiamo farlo da noi
 
 ```{r}
 library(dplyr)
 library(anytime)
-
-#Ottengo solo retweet
-retweets <- everytweet %>%
-  select(campi_utili,retweet_created_at) %>%
-  filter(is_retweet)
-
-
-#Ottengo solo tweet
-tweets <- everytweet %>%
-  select(campi_utili, -retweet_user_id, -retweet_text, -retweet_status_id) %>%
-  filter(!is_retweet) 
 
 clean_tweets = everytweet %>%
   select(campi_utili,retweet_created_at)
@@ -113,8 +166,21 @@ clean_tweets = everytweet %>%
 ncol(clean_tweets)
 nrow(clean_tweets)
 object.size(clean_tweets)
+```
 
-#View(everytweet)
+Qui abbiamo creato il dataframe del punto (1)
+
+```{r}
+
+#Ottengo solo retweet
+retweets <- everytweet %>%
+  select(campi_utili,retweet_created_at) %>%
+  filter(is_retweet)
+
+#Ottengo solo tweet
+tweets <- everytweet %>%
+  select(campi_utili, -retweet_user_id, -retweet_text, -retweet_status_id) %>%
+  filter(!is_retweet) 
 
 
 #Dataframe di retweet con contatore aggiornato
@@ -143,7 +209,7 @@ tweets_with_retweet_number <- tweets_with_retweet_number[c(1,8,7,2,6,3,4,5)] %>%
   mutate(retweet_counter = ifelse(is.na(retweet_counter), 0, retweet_counter))
 
 
-View(tweets_with_retweet_number)
+#View(tweets_with_retweet_number)
 
 ncol(tweets_with_retweet_number)
 nrow(tweets_with_retweet_number)
@@ -176,7 +242,7 @@ ggplot(tweets_data_for_plotting) +
 ```
 
 ```{r}
-link_siti_non_affidabili <- "https://raw.githubusercontent.com/riccardolunardi/ProgettoFondamenti/master/websites/websites_fakenews.txt?token=AIZMNOZGHQAVE6HUPP4FYNK65B5ME"
+link_siti_non_affidabili <- "https://raw.githubusercontent.com/riccardolunardi/ProgettoFondamenti/master/websites/websites_fakenews.txt?token=AIZMNOZFQHVRLKGICY4QWW267GSZQ"
 
 siti_non_affidabili <- read.delim(link_siti_non_affidabili, sep = "\n", header = FALSE)
 siti_non_affidabili <- as.vector(t(sapply(siti_non_affidabili, tolower))) #t trasforma il dataset in una matrice
@@ -211,7 +277,7 @@ ggplot(tweets_data_for_plotting_affidabili) +
   scale_x_date(date_labels = "%m-%d", date_breaks = "2 days") +
   theme_minimal()
 
-View(tweets_data_for_plotting_affidabili %>% filter(!is_affidabile))
+#View(tweets_data_for_plotting_affidabili %>% filter(!is_affidabile))
 
 
 ```
@@ -230,7 +296,7 @@ tweets_with_retweet_number_upd <- tweets_with_retweet_number %>%
 tweets_with_retweet_number_upd <- tweets_with_retweet_number_upd %>% 
   mutate(sentiment = sentiment(text))
 
-#View(tweets_with_retweet_number_upd)
+##View(tweets_with_retweet_number_upd)
 
 tweets_with_retweet_number_upd_plot <- tweets_with_retweet_number_upd %>%
   filter(as.Date(created_at)>"2020-04-22")
@@ -266,7 +332,7 @@ text_mining_tweets <- tweets_with_retweet_number_upd %>%
   unnest_tokens(word, text) %>%
   anti_join(stop_words_ita)
 
-View(text_mining_tweets)
+#View(text_mining_tweets)
 
 text_mining_tweets %>%
   #filter("#" %in% word) %>%
