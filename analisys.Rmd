@@ -7,6 +7,9 @@ editor_options:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(cache = TRUE, message = FALSE, warning = FALSE)
+library(rtweet)
+library(stringr)
+library(readr)
 ```
 
 Durante il periodo di lockdown mi sono chiesto quanto le fake news influenzassero le opinioni delle persone e quanto frequenti fossero le condivisioni di notizie false o ingannevoli sul Web. Per questo, come progetto, ho scelto di prendere in causa Twitter e raccogliere più informazioni possibili su i tweet condivisi per rispondere ad alcune domande che mi sono posto.
@@ -33,9 +36,6 @@ In particolare ho usato l'endpoint [statuses/filter](https://developer.twitter.c
 I tweet ritornati non sono tutti i tweet che rispettano i parametri, ma solo un campione. Quindi non abbiamo i dati assoluti, ma una buona rappresentazione di essi.
 
 ```{r Streaming, eval=FALSE, message=FALSE, warning=FALSE, include=FALSE}
-library(rtweet)
-library(stringr)
-library(readr)
 
 api_key <- "your_api_key"
 api_secret_key <- "your_api_secret_key"
@@ -99,8 +99,8 @@ may=get_tweets_by_date("2020-05-01",31)
 may=may[!may %in% c("data/day2020-05-24.json","data/day2020-05-05.json")] #Tolgo questi due giorni per un errore di esecuzione dello script
 
 #Sequenza dei giorni di aprile + doppione
-june=get_tweets_by_date("2020-06-01",22)
-june=june[!june %in% c("data/day2020-06-19.json")] #Tolgo questo giorno perché è incluso nel file day2020-06-19.json
+june=get_tweets_by_date("2020-06-01",24)
+june=june[!june %in% c("data/day2020-06-19.json", "data/day2020-06-24.json")] #Tolgo questo giorno perché è incluso nel file day2020-06-19.json
 
 every_json_path = c(april, may, june) #Unione dei vettori
 
@@ -124,7 +124,7 @@ Per unirle tutte in uno stesso dataframe, utilizzo do.call, che mi permette di u
 everytweet <- do.call("rbind", stream_analizzate)
 
 #Dataframe completo
-View(everytweet)
+#View(everytweet)
 
 #Infomazioni sul dataframe
 ncol(everytweet)
@@ -347,4 +347,7 @@ text_mining_tweets %>%
 
 ```
 
+```{r}
+
+```
 
