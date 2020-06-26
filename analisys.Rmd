@@ -7,6 +7,9 @@ editor_options:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(cache = TRUE, message = FALSE, warning = FALSE)
+library(rtweet)
+library(stringr)
+library(readr)
 ```
 
 Durante il periodo di lockdown mi sono chiesto quanto le fake news influenzassero le opinioni delle persone e quanto frequenti fossero le condivisioni di notizie false o ingannevoli sul Web. Per questo, come progetto, ho scelto di prendere in causa Twitter e raccogliere più informazioni possibili su i tweet condivisi per rispondere ad alcune domande che mi sono posto.
@@ -33,9 +36,6 @@ In particolare ho usato l'endpoint [statuses/filter](https://developer.twitter.c
 I tweet ritornati non sono tutti i tweet che rispettano i parametri, ma solo un campione. Quindi non abbiamo i dati assoluti, ma una buona rappresentazione di essi.
 
 ```{r Streaming, eval=FALSE, message=FALSE, warning=FALSE, include=FALSE}
-library(rtweet)
-library(stringr)
-library(readr)
 
 api_key <- "your_api_key"
 api_secret_key <- "your_api_secret_key"
@@ -108,7 +108,7 @@ every_json_path = c(april, may, june) #Unione dei vettori
 stream_analizzate <- vector("list",length(every_json_path))  
 
 for (i in 1:length(every_json_path)) {        
-  print(every_json_path[i])
+  #print(every_json_path[i])
   stream_analizzate[[i]] <- parse_stream(every_json_path[i])          
 }
 
@@ -124,7 +124,7 @@ Per unirle tutte in uno stesso dataframe, utilizzo do.call, che mi permette di u
 everytweet <- do.call("rbind", stream_analizzate)
 
 #Dataframe completo
-View(everytweet)
+#View(everytweet)
 
 #Infomazioni sul dataframe
 ncol(everytweet)
@@ -154,7 +154,10 @@ L'obiettivo è quello di avere 2 dataset:
 (1) Uno in cui elimino solo le colonne che non servono
 (2) Uno in cui abbiamo solo i tweet condivisi, con un nuovo attributo che specifica quanto è stato retweetato quel tweet.
 
-Dobbiamo effettuare noi il conteggio dei retweet perché lo streaming ritorna il numero corrente di retweet, che ovviamente all'inizio è 0. Avendo anche i retweet, però, possiamo farlo da noi
+Dobbiamo effettuare il conteggio dei retweet perché lo streaming ritorna il numero corrente di retweet, che ovviamente all'inizio è 0. Avendo anche i retweet, però, possiamo farlo da noi.
+
+Qui creiamo il dataframe del punto (1)
+
 
 ```{r}
 library(dplyr)
@@ -168,7 +171,7 @@ nrow(clean_tweets)
 object.size(clean_tweets)
 ```
 
-Qui abbiamo creato il dataframe del punto (1)
+Metre qui il dataframe (2)
 
 ```{r}
 
@@ -223,27 +226,11 @@ Se avessi usato `right_join` avrei avuto solo tweet che sono stati condivisi e s
 
 `full_join` invece evita incogruenze che si sarebbero potute incontrare con alcuni retweet. Infatti, se un tweet che è stato twittato prima del mio monitoraggio fosse stato ricondiviso durante la raccolta dei tweet, non sarei stato in grado di ottenere informazioni sul tweet iniziale.
 
-```{r}
-library(ggplot2)
-
-tweets_data_for_plotting <- clean_tweets %>%
-  filter(as.Date(created_at)>"2020-04-22") %>%
-  mutate(created_at=substr(created_at,0,10))
-  
-ggplot(tweets_data_for_plotting) +
-  geom_bar(aes(x = as.Date(created_at), fill = is_retweet)) +
-  labs(title = "Quanto frequentemente vengono condivise le notizie?", x="Data del tweet", y="n° di tweet") +
-  scale_fill_manual(values=c("#1da1f2","#17bf63"), name="Tweets", labels=c("Tweet","Retweet")) +
-  scale_x_date(date_labels = "%m-%d", date_breaks = "2 days") +
-  theme_minimal()
-
-
-
-```
+Ora abbiamo la necessità di aggiungere un campo al dataframe che ci faccia sapere in modo veloce se la notizia proviene da una fonte affidabile o no
 
 ```{r}
+#Leggiamo i siti non affidabili dal file dedicato e creiamo un vettore con questi siti
 link_siti_non_affidabili <- "https://raw.githubusercontent.com/riccardolunardi/ProgettoFondamenti/master/websites/websites_fakenews.txt?token=AIZMNOZFQHVRLKGICY4QWW267GSZQ"
-
 siti_non_affidabili <- read.delim(link_siti_non_affidabili, sep = "\n", header = FALSE)
 siti_non_affidabili <- as.vector(t(sapply(siti_non_affidabili, tolower))) #t trasforma il dataset in una matrice
 
@@ -256,7 +243,11 @@ nrow(tidy_tweets %>% filter(!is_affidabile && !is_retweet))
 nrow(tidy_tweets %>% filter(is_affidabile && !is_retweet))
 ```
 
+Da questo risultato possiamo già vedere che chiaramente le notizie false sono in netta minoranza.
+Creiamo un grafico a barre diviso per giorni per vedere che rapporto hanno le fake news rispetto alle notizie che provengono da fonti affidabili
+
 ```{r}
+library(ggplot2)
 
 tweets_data_for_plotting_affidabili <- tidy_tweets %>%
   filter(as.Date(created_at)>"2020-04-22") %>%
@@ -282,10 +273,24 @@ ggplot(tweets_data_for_plotting_affidabili) +
 
 ```
 
+Come previsto, le fake news vengono tweetate e retweetate molto meno rispetto alle altre. 
+Possiamo notare però come ci sia stato uno strano periodo in cui le notizie provenienti da siti non affidabili giravano più frequentemente rispetto al solito.
+Questo periodo va dal 25 aprile al 12 maggio, che corrisponde all'ultimo periodo di lockdown. 
+La mia interpretazione di questo è che le persone, rimenendo a casa, si siano fatte prendere dall'ansia e dalla paura del momento, credendo e condividendo notizie fasulle o poco precise
+Dopo la fase di quarantena il numero di fake news si è essestato ed è sempre rimasto basso
+
+
+GRAFICO DISCRETO PER PERCENTUALI TWEET/RETWEET, QUAL È LA PERCETUALE
+
+
+##Analisi del sentiment
+Per l'analisi del sentimento ho usato [TextWiller](https://github.com/livioivil/TextWiller), una libreria di utilities dedicata alla lingua italiana. [Qui](https://github.com/livioivil/TextWiller/blob/master/README.md) le istruzioni per scaricarla.
+
+Utilizzando la funzione `sentiment(text)`, viene fatta una normalizzazione testo passato e calcolato un punteggio: -1 (Negativo), 0 (Neutrale), 1 (Positivo).
+Applichiando questa funzione al dataset possiamo capire che sentimento condivide il titolo dell'articolo e/o il testo aggiunto dall'utente prima di twittare
 
 
 ```{r}
-
 library(TextWiller)
 
 tweets_with_retweet_number_upd <- tweets_with_retweet_number %>%
@@ -314,6 +319,14 @@ ggplot(tweets_with_retweet_number_upd_plot) +
 
 
 ```
+In entrambe le categorie di notizie, le più condivise sono quelle con un titolo o una descrizione negativa.
+Questo rispetta quello che è stato scoperto da varie ricerche (es. [articolo della BBC](https://www.bbc.com/future/article/20140728-why-is-all-the-news-bad)), cioè che l'essere umano è più propenso a dare più attenzione a notizie negative che a quelle postive.
+
+#GUARDARE NOTIZIE CON ANCHE RETWEET E PROVARE A SPIEGARE LE NEUTRALITA'
+
+
+Come ultima analisi, cerchiamo di capire su che argomenti hanno puntato le fake news e se hanno seguito il trend delle notizie più in voga al momento
+
 
 VOGLIO FARE UN GRAFICO CON LE NOTIZIE FAKE PIù RETWITTATE DOVE OGNI TWEET E' UN CERCHIO. PIù GRANDE è IL CERCHIO PIù è STATA RETWITTATA
 IL CERCHIO CONTIENE IL TESTO DEL TWEET L'HASHTAG
@@ -323,10 +336,9 @@ library(tidytext)
 library(wordcloud)
 library(tm)
 
-stop_words_extra = c("t.co","https","lkhl0j1pqm","wgyypsdiqo","wgyypsdiqo","lkhl0ike2c","tpm3unabk9","amp","2")
+stop_words_extra = c("t.co","https","lkhl0j1pqm","wgyypsdiqo","lkhl0ike2c","tpm3unabk9","amp","2")
 stop_words_vector= append(stop_words_extra, stopwords(kind = "it"), after = length(stop_words_extra))
-
-stop_words_ita = data.frame(word=stop_words_vector)
+stop_words_ita = data.frame(word = stop_words_vector)
 
 text_mining_tweets <- tweets_with_retweet_number_upd %>%
   unnest_tokens(word, text) %>%
@@ -342,7 +354,7 @@ text_mining_tweets %>%
 text_mining_tweets %>%
   count(word, sort = TRUE) %>%
   #filter(word!="coronavirus") %>%
-  with(wordcloud(word, n, max.words = 120, rot.per = 0, random.order=FALSE, random.color=FALSE, colors=brewer.pal(8, "Dark2")))
+  with(wordcloud(word, n, max.words = 120, rot.per = 0, random.order=FALSE, random.color=FALSE, colors=brewer.pal(8, "Dark2")[factor(is_affidabile)]))
   
 
 ```
