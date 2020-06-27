@@ -301,7 +301,7 @@ tweets_with_retweet_number_upd <- tweets_with_retweet_number %>%
 tweets_with_retweet_number_upd <- tweets_with_retweet_number_upd %>% 
   mutate(sentiment = sentiment(text))
 
-##View(tweets_with_retweet_number_upd)
+#View(tweets_with_retweet_number_upd)
 
 tweets_with_retweet_number_upd_plot <- tweets_with_retweet_number_upd %>%
   filter(as.Date(created_at)>"2020-04-22")
@@ -347,14 +347,13 @@ text_mining_tweets <- tweets_with_retweet_number_upd %>%
 #View(text_mining_tweets)
 
 text_mining_tweets %>%
-  #filter("#" %in% word) %>%
   count(word, sort = TRUE)
 
 
 text_mining_tweets %>%
   count(word, sort = TRUE) %>%
   #filter(word!="coronavirus") %>%
-  with(wordcloud(word, n, max.words = 120, rot.per = 0, random.order=FALSE, random.color=FALSE, colors=brewer.pal(8, "Dark2")[factor(is_affidabile)]))
+  with(wordcloud(word, n, max.words = 120, rot.per = 0, random.order=FALSE, random.color=FALSE, colors=brewer.pal(8, "Dark2")))
   
 
 ```
