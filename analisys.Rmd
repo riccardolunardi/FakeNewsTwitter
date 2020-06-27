@@ -340,9 +340,12 @@ stop_words_extra = c("t.co","https","lkhl0j1pqm","wgyypsdiqo","lkhl0ike2c","tpm3
 stop_words_vector= append(stop_words_extra, stopwords(kind = "it"), after = length(stop_words_extra))
 stop_words_ita = data.frame(word = stop_words_vector)
 
+
 text_mining_tweets <- tweets_with_retweet_number_upd %>%
   unnest_tokens(word, text) %>%
+  select(-urls_expanded_url) %>%
   anti_join(stop_words_ita)
+
 
 #View(text_mining_tweets)
 
