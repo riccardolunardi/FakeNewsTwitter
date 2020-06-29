@@ -99,7 +99,7 @@ may=get_tweets_by_date("2020-05-01",31)
 may=may[!may %in% c("data/day2020-05-24.json","data/day2020-05-05.json")] #Tolgo questi due giorni per un errore di esecuzione dello script
 
 #Sequenza dei giorni di aprile + doppione
-june=get_tweets_by_date("2020-06-01",24)
+june=get_tweets_by_date("2020-06-01",29)
 june=june[!june %in% c("data/day2020-06-19.json", "data/day2020-06-24.json", "data/day2020-06-06.json", "data/day2020-06-05.json")] #Tolgo questo giorno perché è incluso nel file day2020-06-19.json
 
 every_json_path = c(april, may, june) #Unione dei vettori
@@ -248,7 +248,7 @@ nrow(tidy_tweets %>% filter(is_affidabile && !is_retweet))
 
 Da questo risultato possiamo già vedere che chiaramente le notizie false sono in netta minoranza.
 Creiamo un grafico a barre diviso per giorni per vedere che rapporto hanno le fake news rispetto alle notizie che provengono da fonti affidabili.
-In questa fase utilizziamo il dataframe contente tweet e retweet, visto che abbiamo bisogno di sapere anche _quando_ è avvenuto un retweet
+In questa fase utilizziamo il dataframe contente tweet e retweet, visto che abbiamo bisogno di sapere anche* **quando** è avvenuto un retweet
 
 ```{r}
 library(ggplot2)
