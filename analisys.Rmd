@@ -7,9 +7,6 @@ editor_options:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(cache = TRUE, message = FALSE, warning = FALSE)
-library(rtweet)
-library(stringr)
-library(readr)
 ```
 
 Durante il periodo di lockdown mi sono chiesto quanto le fake news influenzassero le opinioni delle persone e quanto frequenti fossero le condivisioni di notizie false o ingannevoli sul Web. Per questo, come progetto, ho scelto di prendere in causa Twitter e raccogliere più informazioni possibili su i tweet condivisi per rispondere ad alcune domande che mi sono posto.
@@ -36,7 +33,6 @@ In particolare ho usato l'endpoint [statuses/filter](https://developer.twitter.c
 I tweet ritornati non sono tutti i tweet che rispettano i parametri, ma solo un campione. Quindi non abbiamo i dati assoluti, ma una buona rappresentazione di essi.
 
 ```{r Streaming, eval=FALSE, message=FALSE, warning=FALSE, include=FALSE}
-
 api_key <- "your_api_key"
 api_secret_key <- "your_api_secret_key"
 access_token <- "your_access_token"
@@ -79,6 +75,10 @@ Il file prodotto da _stream_tweets_ è un file che raccoglie un JSON per tweet r
 Per trasformare il JSON in un dataframe ho utilizzato la funzione parse_stream di rtweet, che automatizza questo processo. La funzione però, accetta solo un file per volta, quindi ho dovuto creare un array in cui ogni elemento era un path di JSON e iterare la cosidetta funzione per ogni file.
 
 ```{r}
+library(rtweet)
+library(stringr)
+library(readr)
+
 #CODICE DELL'UNIONE DEI JSON
 get_tweets_by_date = function(start_date, leng) {
   link1 = "data/day" #prefisso
@@ -100,7 +100,7 @@ may=may[!may %in% c("data/day2020-05-24.json","data/day2020-05-05.json")] #Tolgo
 
 #Sequenza dei giorni di aprile + doppione
 june=get_tweets_by_date("2020-06-01",24)
-june=june[!june %in% c("data/day2020-06-19.json", "data/day2020-06-24.json")] #Tolgo questo giorno perché è incluso nel file day2020-06-19.json
+june=june[!june %in% c("data/day2020-06-19.json", "data/day2020-06-24.json", "data/day2020-06-06.json", "data/day2020-06-05.json")] #Tolgo questo giorno perché è incluso nel file day2020-06-19.json
 
 every_json_path = c(april, may, june) #Unione dei vettori
 
@@ -153,6 +153,8 @@ campi_utili = c("user_id","status_id","created_at","screen_name","text",
 L'obiettivo è quello di avere 2 dataset:
 (1) Uno in cui elimino solo le colonne che non servono
 (2) Uno in cui abbiamo solo i tweet condivisi, con un nuovo attributo che specifica quanto è stato retweetato quel tweet.
+
+Sarebbe comodo ed efficiente avere solo il secondo, però in quel caso perdiamo alcune informazioni, come la data di un retweet, se sono state aggiunte delle parole ad esso, etc, quindi cercheremo di usare quello più leggero quando possibile
 
 Dobbiamo effettuare il conteggio dei retweet perché lo streaming ritorna il numero corrente di retweet, che ovviamente all'inizio è 0. Avendo anche i retweet, però, possiamo farlo da noi.
 
@@ -230,7 +232,7 @@ Ora abbiamo la necessità di aggiungere un campo al dataframe che ci faccia sape
 
 ```{r}
 #Leggiamo i siti non affidabili dal file dedicato e creiamo un vettore con questi siti
-link_siti_non_affidabili <- "https://raw.githubusercontent.com/riccardolunardi/ProgettoFondamenti/master/websites/websites_fakenews.txt?token=AIZMNOZFQHVRLKGICY4QWW267GSZQ"
+link_siti_non_affidabili <- "websites/websites_fakenews.txt"
 siti_non_affidabili <- read.delim(link_siti_non_affidabili, sep = "\n", header = FALSE)
 siti_non_affidabili <- as.vector(t(sapply(siti_non_affidabili, tolower))) #t trasforma il dataset in una matrice
 
@@ -243,8 +245,10 @@ nrow(tidy_tweets %>% filter(!is_affidabile && !is_retweet))
 nrow(tidy_tweets %>% filter(is_affidabile && !is_retweet))
 ```
 
+
 Da questo risultato possiamo già vedere che chiaramente le notizie false sono in netta minoranza.
-Creiamo un grafico a barre diviso per giorni per vedere che rapporto hanno le fake news rispetto alle notizie che provengono da fonti affidabili
+Creiamo un grafico a barre diviso per giorni per vedere che rapporto hanno le fake news rispetto alle notizie che provengono da fonti affidabili.
+In questa fase utilizziamo il dataframe contente tweet e retweet, visto che abbiamo bisogno di sapere anche _quando_ è avvenuto un retweet
 
 ```{r}
 library(ggplot2)
@@ -270,20 +274,38 @@ ggplot(tweets_data_for_plotting_affidabili) +
 
 #View(tweets_data_for_plotting_affidabili %>% filter(!is_affidabile))
 
-
 ```
 
 Come previsto, le fake news vengono tweetate e retweetate molto meno rispetto alle altre. 
 Possiamo notare però come ci sia stato uno strano periodo in cui le notizie provenienti da siti non affidabili giravano più frequentemente rispetto al solito.
 Questo periodo va dal 25 aprile al 12 maggio, che corrisponde all'ultimo periodo di lockdown. 
 La mia interpretazione di questo è che le persone, rimenendo a casa, si siano fatte prendere dall'ansia e dalla paura del momento, credendo e condividendo notizie fasulle o poco precise
-Dopo la fase di quarantena il numero di fake news si è essestato ed è sempre rimasto basso
+Dopo la fase di quarantena il numero di fake news si è essestato ed è sempre rimasto basso.
 
+Adesso plottiamo i dati in percentuale per ogni giorno
 
-GRAFICO DISCRETO PER PERCENTUALI TWEET/RETWEET, QUAL È LA PERCETUALE
+```{r}
 
+tweets_data_for_plotting_affidabili2 <- tweets_data_for_plotting_affidabili %>%
+  count(created_at, is_affidabile) %>%
+  group_by(created_at) %>%
+  mutate(tot=sum(n),conto = n/tot)
+  
+
+ggplot(data = tweets_data_for_plotting_affidabili2, mapping = aes(y = n/tot, x = as.Date(created_at), color = factor(is_affidabile))) +
+  geom_point() + 
+  geom_smooth() +
+  labs(title = "Quanto frequentemente vengono condivise le notizie?", x="Data del tweet", y="n° di tweet") +
+  scale_color_manual(values=c("#f24f1d","#17bf63"), name="Tweets", labels=c("Tweet affidabili","Tweet non affidabili")) +
+  scale_x_date(date_labels = "%m-%d", date_breaks = "2 days") +
+  theme_minimal() 
+
+```
+
+Anche da qui è chiaro che in quel periodo ci fossero più notizie non affidabili, ma col tempo, a partire dal 5 maggio, c'è stata una riduzione, che si è assestata verso il 20 maggio senza mai riprendere il vecchio trend
 
 ##Analisi del sentiment
+
 Per l'analisi del sentimento ho usato [TextWiller](https://github.com/livioivil/TextWiller), una libreria di utilities dedicata alla lingua italiana. [Qui](https://github.com/livioivil/TextWiller/blob/master/README.md) le istruzioni per scaricarla.
 
 Utilizzando la funzione `sentiment(text)`, viene fatta una normalizzazione testo passato e calcolato un punteggio: -1 (Negativo), 0 (Neutrale), 1 (Positivo).
@@ -319,47 +341,65 @@ ggplot(tweets_with_retweet_number_upd_plot) +
 
 
 ```
+
 In entrambe le categorie di notizie, le più condivise sono quelle con un titolo o una descrizione negativa.
 Questo rispetta quello che è stato scoperto da varie ricerche (es. [articolo della BBC](https://www.bbc.com/future/article/20140728-why-is-all-the-news-bad)), cioè che l'essere umano è più propenso a dare più attenzione a notizie negative che a quelle postive.
 
-#GUARDARE NOTIZIE CON ANCHE RETWEET E PROVARE A SPIEGARE LE NEUTRALITA'
+La neutralità indica notizie che sono postate solamente con il titolo e quest'ultimo non aveva particolari connotazioni negative o positive
 
+L'analisi del sentiment attraverso un vocabolario è sempre da prendere con le pinze, perché ad esempio non considera il sarcasmo o insiemi di parole, in più il testo con cui lavora è molto poco: una, due frasi al massimo per tweet. In ogni caso ritengo sia comunque affidabile visto i risultati ottenuti
 
-Come ultima analisi, cerchiamo di capire su che argomenti hanno puntato le fake news e se hanno seguito il trend delle notizie più in voga al momento
+```{r Controllo sentimento (manuale), eval=FALSE, include=FALSE}
+View(tweets_with_retweet_number_upd %>% 
+       select(text, is_affidabile, sentiment) %>%
+       filter(is_affidabile, sentiment==0)
+     )
+```
 
+##CONTESTO
 
-VOGLIO FARE UN GRAFICO CON LE NOTIZIE FAKE PIù RETWITTATE DOVE OGNI TWEET E' UN CERCHIO. PIù GRANDE è IL CERCHIO PIù è STATA RETWITTATA
-IL CERCHIO CONTIENE IL TESTO DEL TWEET L'HASHTAG
+Come ultima analisi, cerchiamo di capire su che argomenti hanno puntato le fake news e se hanno seguito il trend delle notizie più in voga del momento
 
 ```{r}
 library(tidytext)
 library(wordcloud)
 library(tm)
 
-stop_words_extra = c("t.co","https","lkhl0j1pqm","wgyypsdiqo","lkhl0ike2c","tpm3unabk9","amp","2")
+stop_words_extra = c("t.co","https","lkhl0j1pqm","wgyypsdiqo","lkhl0ike2c","tpm3unabk9","amp","2","uc8qrmsbx2","weieh1n3qy","wxsqwmbw67","33iqc7xzjo","fispjyrtyw","bgfnwd339h","rxmeve8hzy","lty4aseqyc","wdfy92x5rd","ykmiyz3fm3")
 stop_words_vector= append(stop_words_extra, stopwords(kind = "it"), after = length(stop_words_extra))
 stop_words_ita = data.frame(word = stop_words_vector)
 
 
-text_mining_tweets <- tweets_with_retweet_number_upd %>%
+text_mining_f_tweets <- tweets_with_retweet_number_upd %>%
+  filter(!is_affidabile) %>%
   unnest_tokens(word, text) %>%
   select(-urls_expanded_url) %>%
   anti_join(stop_words_ita)
 
+text_mining_t_tweets <- tweets_with_retweet_number_upd %>%
+  filter(is_affidabile) %>%
+  unnest_tokens(word, text) %>%
+  select(-urls_expanded_url) %>%
+  anti_join(stop_words_ita)
 
-#View(text_mining_tweets)
+#Il select è necessario perché dovuto ad un bug nella versione di dplyr 1.0.0 (funziona correttamente nella versione 0.8.5: https://stackoverflow.com/questions/62609723/must-subset-elements-with-a-valid-subscript-vector-during-an-dplyranti-join)
 
-text_mining_tweets %>%
-  count(word, sort = TRUE)
-
-
-text_mining_tweets %>%
+text_mining_f_tweets %>%
   count(word, sort = TRUE) %>%
-  #filter(word!="coronavirus") %>%
-  with(wordcloud(word, n, max.words = 120, rot.per = 0, random.order=FALSE, random.color=FALSE, colors=brewer.pal(8, "Dark2")))
+  filter(n>20) %>%
+  with(wordcloud(word, n, max.words = 30, rot.per = 0, random.order=FALSE, random.color=FALSE, colors=brewer.pal(8, "Dark2")))
+
+text_mining_t_tweets %>%
+  count(word, sort = TRUE) %>%
+  filter(n>20) %>%
+  with(wordcloud(word, n, max.words = 30, rot.per = 0, random.order=FALSE, random.color=FALSE, colors=brewer.pal(8, "Dark2")))
   
 
 ```
+
+Entrambi i tipi di notizia si focalizzano sulla questione COVID-19 e hanno argomenti molto simili tra di loro. Le fake news però si concentrano più sulla politica e i rapporti con gli altri paesi ("MES", "Trump", "Germania", "Cina", etc...), mentre le altre notizie più sul virus in sé e sull'effetto in italia ("Coronavirus", "Lombardia", "Fase", etc...)
+Con questo possiamo dire che più che seguire passo-passo il trend delle notizie verificate, le fake news hanno sfruttato altri avvenimenti contemporanei per fare più click
+
 
 ```{r}
 
