@@ -9,28 +9,29 @@ editor_options:
 knitr::opts_chunk$set(cache = TRUE, message = FALSE, warning = FALSE)
 ```
 
-Durante il periodo di lockdown mi sono chiesto quanto le fake news influenzassero le opinioni delle persone e quanto frequenti fossero le condivisioni di notizie false o ingannevoli sul Web. Per questo, come progetto, ho scelto di prendere in causa Twitter e raccogliere più informazioni possibili su i tweet condivisi per rispondere ad alcune domande che mi sono posto.
+Durante il periodo di lockdown mi sono chiesto quanto le fake news influenzassero le opinioni delle persone e quanto frequenti fossero le condivisioni di notizie false o ingannevoli sul Web. Quindi, come caso di studio, ho scelto di prendere in causa Twitter e raccogliere più informazioni possibili sui tweet condivisi in questo periodo per rispondere ad alcune domande che mi sono posto.
+Tra tutti i social network ho preferito Twitter perché permette, al contrario, ad esempio, di Facebook, di utilizzare alcune API per la ricerca/streaming dei tweet, che mi ha concesso la raccolta dei dati. 
 
-Perché Twitter?
-Ho scelto Twitter perché permette, al contrario di Facebook, di utilizzare alcune API per la ricerca/streaming di tweet, che ha permesso la raccolta dei dati. 
-
-Come faccio ad essere sicuro che siano fake news?
-Putroppo non esiste una maniera universale per capire se una notizia è fake oppure no. Io mi sono basato sulle "blacklist" di [BUTAC.it](https://www.butac.it/the-black-list/) e di [Bufale.net](https://www.bufale.net/the-black-list-la-lista-nera-del-web/), che riportano siti di notizie che hanno spesso condiviso notizie false, modificate in base alle ideologie o senza allegare alcun tipo di fonte.
-
+Innanzitutto, com'è possibile discriminare le fake news dalle notizie veritiere?
+Putroppo non esiste una maniera universale per capire se una notizia è falsa oppure no. Io mi sono basato sulle "blacklist" di [BUTAC.it](https://www.butac.it/the-black-list/) e di [Bufale.net](https://www.bufale.net/the-black-list-la-lista-nera-del-web/), che riportano a siti che condividono spesso notizie false, modificate in base alle ideologie o pubblicate senza rendere nota alcun tipo di fonte.
 
 Le domande che mi sono posto sono:
 
-- Quanto spesso vengono condivise fake news su Twitter? Quanto vengono retweetate? EChe rapporto c'è tra notizie ingannevoli e notizie provenienti da siti affidabili?
+- Quanto spesso vengono condivise fake news su Twitter? Quanto vengono retweetate? E che rapporto c'è tra notizie ingannevoli e notizie provenienti da siti affidabili?
 - Le notizie che considero false, che tipo di "sentiment" esprimono?
-- Quali sono stati gli argomenti più trattati da siti di news non affidabili?
+- Quali sono stati gli argomenti più trattati da siti di news non affidabili? Hanno seguito il trend riguardante le notizie delle testate giornalistiche più famose?
 
-Prima di poter rispondere a questi questiti, ho dovuto raccogliere i dati e "ripulirli" per cercare di ridurre le dimesioni del mio dataset
+Prima di poter rispondere a questi questiti, ho dovuto raccogliere i dati e "ripulirli" per cercare di ridurre le dimensioni del mio dataset
 
-## Come ho costruito il dataset
+##Come ho costruito il dataset
 
 Il dataset è stato costruito utilizzando la libreria [rtweet](https://rtweet.info/), che permette di interfacciarsi con le API di Twitter tramite R.
-In particolare ho usato l'endpoint [statuses/filter](https://developer.twitter.com/en/docs/tweets/filter-realtime/api-reference/post-statuses-filter), che ritorna, per un determinato periodo di tempo, tweet che rispettano alcuni parametri preimpostati.
-I tweet ritornati non sono tutti i tweet che rispettano i parametri, ma solo un campione. Quindi non abbiamo i dati assoluti, ma una buona rappresentazione di essi.
+In particolare ho usato l'endpoint [statuses/filter](https://developer.twitter.com/en/docs/tweets/filter-realtime/api-reference/post-statuses-filter), che ritorna, per un determinato periodo di tempo, i tweets che rispettano alcuni parametri preimpostati.
+Utilizzando quel particolare endpoint, ho raccolto più di 35mila tweet, che non sono tutti i tweet da aprile a oggi, ma solo un campione di essi. Questo è dovuto all' [implementazione delle streaming API di Twitter](https://twittercommunity.com/t/potential-adjustments-to-streaming-api-sample-volumes/31628), le quali ritornano circa l'1% dei tweet pubblici. Quindi non ho ottenuto i dati assoluti, ma una buona rappresentazione di essi.
+La raccolta dei dati sarebbe stata possibile anche attraverso l'endpoint [search](https://developer.twitter.com/en/docs/tweets/search/overview), il quale avrebbe ritornato tutti (e quindi non solo un campione) i tweet che rispettavano i parametri dati. Nonostante questi vantaggi, non ho utilizzato questo metodo perché l'API gratuita aveva troppe limitazioni. Infatti ne esistono più versioni: SandBox, Premium e Enterprise. La versione SandBox, quella gratuita, permette di ottenere tweet vecchi di massimo una settimana e con un massimo di 100 tweets per richiesta. Questo avrebbe complicato notevolemente lo sviluppo di uno script.
+Le versioni Premium ed Enterpise hanno invece limiti più ampi, [ma possono avere un costo anche notevole in base all'uso che se ne fa](https://developer.twitter.com/en/premium-apis#:~:text=To%20ensure%20it's%20easy%20to,%2499%2Fmonth%20for%20100%20requests.)
+
+Come paramentri ho scelto 10 testate giornalistiche italiane che sono considerate generalmente affidabili (es. Corriere Della Sera, AGI, ANSA.it) e 100 siti d'informazione ritenuti non altrettando corretti.
 
 ```{r Streaming, eval=FALSE, message=FALSE, warning=FALSE, include=FALSE}
 api_key <- "your_api_key"
@@ -38,7 +39,7 @@ api_secret_key <- "your_api_secret_key"
 access_token <- "your_access_token"
 access_token_secret <- "your_access_token_secret"
 
-## Autenticazione via API keys
+# Autenticazione via API keys
 token <- create_token(
   app = "FakeNewsUniUd",
   consumer_key = api_key,
@@ -46,7 +47,7 @@ token <- create_token(
   access_token = access_token,
   access_secret = access_token_secret)
 
-## Raccogli lo stream di tweet per un giorno. Readr velocizza il processo di parsing
+# Raccogli lo stream di tweet per un giorno. Readr velocizza il processo di parsing
 
 link_siti_non_affidabili <- "https://raw.githubusercontent.com/riccardolunardi/ProgettoFondamenti/master/websites/websites_fakenews.txt?token=AIZMNO53XQFIZ56OI7BYLOS66CTGM"
 siti_non_affidabili <- read.delim(link_siti_non_affidabili, sep = "\n", header = FALSE)
@@ -59,7 +60,6 @@ siti_affidabili <- as.vector(t(sapply(siti_affidabili, tolower))) #t trasforma i
 siti_affidabili <- paste(siti_affidabili, collapse = ', ')
 
 siti=paste(siti_affidabili,siti_non_affidabili, collapse = ', ')
-#siti
 
 stream_tweets(
   siti,
@@ -70,9 +70,9 @@ stream_tweets(
 
 ```
 
-Il file prodotto da _stream_tweets_ è un file che raccoglie un JSON per tweet raccolto. Avendo avuto solo quale mese per raccogliere i dati, ogni giorno facevo ripartire lo streaming per evitare possibili bug o stalli dello script, per cui alla fine ho ottenuto un insieme di JSON, ogniuno rinominato con il giorno in cui è stato creato quel file.
+Il file prodotto dalla funzione _stream_tweets_ è un documento che raccoglie più JSON, uno per tweet raccolto. Avendo avuto solo qualche mese per raccogliere i dati, ogni giorno facevo ripartire lo streaming per evitare possibili bug o stalli dello script, per cui alla fine ho ottenuto un insieme di JSON, ognuno rinominato con il giorno in cui è stato creato.
 
-Per trasformare il JSON in un dataframe ho utilizzato la funzione parse_stream di rtweet, che automatizza questo processo. La funzione però, accetta solo un file per volta, quindi ho dovuto creare un array in cui ogni elemento era un path di JSON e iterare la cosidetta funzione per ogni file.
+Per trasformare il JSON in un dataframe ho utilizzato la funzione parse_stream di rtweet, che automatizza questo processo. La funzione però accetta solo un file per volta, quindi ho creato un array in cui ogni elemento era un path di JSON e iterare la cosidetta funzione per ogni file.
 
 ```{r}
 library(rtweet)
@@ -116,8 +116,7 @@ for (i in 1:length(every_json_path)) {
 
 ```
 
-Adesso, avendo la lista _stream_analizzate_ contenente un dataset per ogni giorno, per
-Per unirle tutte in uno stesso dataframe, utilizzo do.call, che mi permette di usare rbind su una lista
+Ottenuta la lista _stream_analizzate_, contenente un dataset per ogni giorno, utilizzo `do.call`, che mi permette di usare `rbind` su una lista, in modo da unirle tutti gli elementi in uno stesso dataframe.
 
 ```{r}
 #Applico rbind alla lista di dataframe
@@ -131,16 +130,13 @@ ncol(everytweet)
 nrow(everytweet)
 object.size(everytweet)
 ```
-Come possiamo notare ci sono molte colonne e altrettante righe nel dataset, rendendolo così molto pesante, sui 90MB.
-Conviene cercare di ridurlo di dimesioni per agevolare l'elaborazione.
 
-NOTE:
-La raccolta dei dati è sarebbe stata possibile anche attraverso l'endpoint [search](https://developer.twitter.com/en/docs/tweets/search/overview), il quale avrebbe ritornato tutti (e quindi non solo un campione) i tweet che rispettavano i parametri dati. Nonostante questi vantaggi, non ho utilizzato questo metodo perché l'API free aveva troppe limitazioni. Infatti ne esistono più versioni: SandBox, Premium e Enterprise. La versione SandBox, quella gratuita, permette di ottenere tweet vecchi di massimo una settimana e con un massimo di 100. Questo avrebbe complicato notevolemente lo sviluppo di uno script.
-Le versioni Premium ed Enterpise hanno invece limiti più ampi, [ma vengono a costare anche parecchio in base all'uso che se ne fa](https://developer.twitter.com/en/premium-apis#:~:text=To%20ensure%20it's%20easy%20to,%2499%2Fmonth%20for%20100%20requests.)
+Come possiamo notare ci sono molte colonne e altrettante righe nel dataset, che lo rendendono così molto pesante, circa 90MB.
+Conviene cercare di ridurlo di dimensioni per agevolare l'elaborazione.
 
 ## Pulizia dei dati
 
-Tra i 90 campi del dataset, solo alcuni di questi sono utili a rispondere alle domande poste inizialmente. Rimuoveremo infatti tutti i campi realtivi alle immagini, agli hashtag, ai follower, ai favorites, etc...
+Tra i 90 campi del dataset, solo alcuni di questi sono utili a rispondere alle domande che mi sono posto. Sono da rimuovere infatti tutti i campi relativi alle immagini, agli hashtag, ai follower, ai favorites, etc...
 
 _campi\_utili_ conterrà solo gli attributi necessari
 
@@ -150,16 +146,15 @@ campi_utili = c("user_id","status_id","created_at","screen_name","text",
                 "retweet_user_id","is_retweet")
 ```
 
-L'obiettivo è quello di avere 2 dataset:
+L'obiettivo di questa pulizia è di avere 2 dataset:
 (1) Uno in cui elimino solo le colonne che non servono
-(2) Uno in cui abbiamo solo i tweet condivisi, con un nuovo attributo che specifica quanto è stato retweetato quel tweet.
+(2) Uno in cui si hanno solo i tweets, ma con un nuovo attributo che specifica quante volte sono stati retweetati.
 
-Sarebbe comodo ed efficiente avere solo il secondo, però in quel caso perdiamo alcune informazioni, come la data di un retweet, se sono state aggiunte delle parole ad esso, etc, quindi cercheremo di usare quello più leggero quando possibile
+Sarebbe comodo ed efficiente avere solo il secondo dataset, ma così si perderebbero alcune informazioni, come la data di un retweet, le parole aggiunte al retweet quando è stato condiviso, etc; quindi sarà preferibile usare quello più leggero quando possibile.
 
-Dobbiamo effettuare il conteggio dei retweet perché lo streaming ritorna il numero corrente di retweet, che ovviamente all'inizio è 0. Avendo anche i retweet, però, possiamo farlo da noi.
+E' necessario quindi effettuare il conteggio dei retweet perché lo streaming ritorna il numero corrente di retweet, che ovviamente all'inizio è 0. Avendo anche i retweet, però, è possibile calcolarlo.
 
-Qui creiamo il dataframe del punto (1)
-
+Qui creo il dataframe del punto (1)
 
 ```{r}
 library(dplyr)
@@ -173,7 +168,7 @@ nrow(clean_tweets)
 object.size(clean_tweets)
 ```
 
-Metre qui il dataframe (2)
+Mentre qui il dataframe (2)
 
 ```{r}
 
@@ -222,13 +217,13 @@ object.size(tweets_with_retweet_number)
 
 ```
 
-Se avessi usato `inner_join` avrei avuto come dataset risultante solo tweet che sono stati ritweetati durante il mio monitoraggio
-Se avessi usato `left_join` avrei ottenuto i tweet retweetati e quelli non retweetati
-Se avessi usato `right_join` avrei avuto solo tweet che sono stati condivisi e solo tweet che sono stati condivisi prima del monitoraggio. 
+Se avessi usato `inner_join` avrei avuto come dataset risultante solo i tweet che sono stati retweetati durante il mio monitoraggio.
+Se avessi usato `left_join` avrei ottenuto i tweet retweetati e quelli non retweetati.
+Se avessi usato `right_join` avrei avuto solo i tweet che sono stati condivisi e solo i tweet che sono stati condivisi prima del monitoraggio. 
 
 `full_join` invece evita incogruenze che si sarebbero potute incontrare con alcuni retweet. Infatti, se un tweet che è stato twittato prima del mio monitoraggio fosse stato ricondiviso durante la raccolta dei tweet, non sarei stato in grado di ottenere informazioni sul tweet iniziale.
 
-Ora abbiamo la necessità di aggiungere un campo al dataframe che ci faccia sapere in modo veloce se la notizia proviene da una fonte affidabile o no
+Ora emerge la necessità di aggiungere un campo al dataframe che evidenzi in modo veloce se la notizia proviene da una fonte affidabile o no.
 
 ```{r}
 #Leggiamo i siti non affidabili dal file dedicato e creiamo un vettore con questi siti
@@ -245,10 +240,10 @@ nrow(tidy_tweets %>% filter(!is_affidabile && !is_retweet))
 nrow(tidy_tweets %>% filter(is_affidabile && !is_retweet))
 ```
 
+Dal risultato ottenuto appare evidente che le notizie false sono in netta minoranza.
 
-Da questo risultato possiamo già vedere che chiaramente le notizie false sono in netta minoranza.
-Creiamo un grafico a barre diviso per giorni per vedere che rapporto hanno le fake news rispetto alle notizie che provengono da fonti affidabili.
-In questa fase utilizziamo il dataframe contente tweet e retweet, visto che abbiamo bisogno di sapere anche* **quando** è avvenuto un retweet
+Creando un grafico a barre, diviso per giorni, è ben visibile il rapporto che hanno le fake news rispetto alle notizie che provengono da fonti affidabili.
+In questa fase utilizzo il dataframe contente tweet e retweet, visto che è necessario sapere anche **quando** è avvenuto un retweet
 
 ```{r}
 library(ggplot2)
@@ -276,13 +271,13 @@ ggplot(tweets_data_for_plotting_affidabili) +
 
 ```
 
-Come previsto, le fake news vengono tweetate e retweetate molto meno rispetto alle altre. 
-Possiamo notare però come ci sia stato uno strano periodo in cui le notizie provenienti da siti non affidabili giravano più frequentemente rispetto al solito.
-Questo periodo va dal 25 aprile al 12 maggio, che corrisponde all'ultimo periodo di lockdown. 
-La mia interpretazione di questo è che le persone, rimenendo a casa, si siano fatte prendere dall'ansia e dalla paura del momento, credendo e condividendo notizie fasulle o poco precise
-Dopo la fase di quarantena il numero di fake news si è essestato ed è sempre rimasto basso.
+Come dimostrato dal precedente risultato, le fake news vengono tweetate e retweetate molto meno rispetto alle altre. 
+Possiamo notare però come ci sia stato un periodo insolito in cui le notizie provenienti da siti non affidabili giravano più frequentemente del normale.
+Questo periodo va dal 25 aprile al 12 maggio e corrisponde all'ultimo momento di lockdown.
+La mia interpretazione di questo fenomeno è che negli utenti, dopo la prolungata permanenza in casa, si siano concentrate paure e ansie del momento, tanto da provare ad attenuarle con un rimedio apparente: la condvisione ossessiva di notizie dal click facile e create appositamente per questo.
+Dopo la fase di quarantena il numero di fake news si è assestato ed è sempre rimasto basso da allora.
 
-Adesso plottiamo i dati in percentuale per ogni giorno
+Segue la presentazione grafica dei dati in percentuale per ogni giorno
 
 ```{r}
 
@@ -302,14 +297,14 @@ ggplot(data = tweets_data_for_plotting_affidabili2, mapping = aes(y = n/tot, x =
 
 ```
 
-Anche da qui è chiaro che in quel periodo ci fossero più notizie non affidabili, ma col tempo, a partire dal 5 maggio, c'è stata una riduzione, che si è assestata verso il 20 maggio senza mai riprendere il vecchio trend
+Emerge ancora chiaramente che in quel periodo circolassero più notizie non affidabili; ma successivamente, a partire dal 5 maggio, c'è stata una riduzione, che si è assestata verso il 20 maggio senza mai riprendere il vecchio trend.
 
 ##Analisi del sentiment
 
-Per l'analisi del sentimento ho usato [TextWiller](https://github.com/livioivil/TextWiller), una libreria di utilities dedicata alla lingua italiana. [Qui](https://github.com/livioivil/TextWiller/blob/master/README.md) le istruzioni per scaricarla.
+Per l'analisi del sentiment ho usato [TextWiller](https://github.com/livioivil/TextWiller), una libreria di utilities dedicata alla lingua italiana. [Qui](https://github.com/livioivil/TextWiller/blob/master/README.md) le istruzioni per scaricarla ed installarla.
 
-Utilizzando la funzione `sentiment(text)`, viene fatta una normalizzazione testo passato e calcolato un punteggio: -1 (Negativo), 0 (Neutrale), 1 (Positivo).
-Applichiando questa funzione al dataset possiamo capire che sentimento condivide il titolo dell'articolo e/o il testo aggiunto dall'utente prima di twittare
+Utilizzando la funzione `sentiment(text)`, viene fatta una normalizzazione del testo e calcolato un punteggio: -1 (Negativo), 0 (Neutrale), 1 (Positivo), in base alla possibilità o meno di esprimere un'emozione.
+Applicando questa funzione al dataset si comprende che emozione condivide il titolo dell'articolo e/o il testo aggiunto dall'utente prima di twittare.
 
 
 ```{r}
@@ -343,11 +338,11 @@ ggplot(tweets_with_retweet_number_upd_plot) +
 ```
 
 In entrambe le categorie di notizie, le più condivise sono quelle con un titolo o una descrizione negativa.
-Questo rispetta quello che è stato scoperto da varie ricerche (es. [articolo della BBC](https://www.bbc.com/future/article/20140728-why-is-all-the-news-bad)), cioè che l'essere umano è più propenso a dare più attenzione a notizie negative che a quelle postive.
+Questo rispetta quello che è stato scoperto da varie ricerche (es. [articolo della BBC](https://www.bbc.com/future/article/20140728-why-is-all-the-news-bad)), cioè che l'essere umano è più propenso a dare più attenzione a notizie negative che a quelle positive.
 
-La neutralità indica notizie che sono postate solamente con il titolo e quest'ultimo non aveva particolari connotazioni negative o positive
+La neutralità indica notizie che sono postate solamente con il titolo e quest'ultimo non aveva particolari connotazioni negative o positive.
 
-L'analisi del sentiment attraverso un vocabolario è sempre da prendere con le pinze, perché ad esempio non considera il sarcasmo o insiemi di parole, in più il testo con cui lavora è molto poco: una, due frasi al massimo per tweet. In ogni caso ritengo sia comunque affidabile visto i risultati ottenuti
+L'analisi del sentiment attraverso un vocabolario va sempre trattata con cautela, perché ad esempio non considera il sarcasmo o insiemi di parole; in più il testo che elabora è molto poco: una o due frasi al massimo per tweet. Detto questo, ritengo sia comunque un'analisi affidabile visto i risultati ottenuti.
 
 ```{r Controllo sentimento (manuale), eval=FALSE, include=FALSE}
 View(tweets_with_retweet_number_upd %>% 
@@ -356,9 +351,9 @@ View(tweets_with_retweet_number_upd %>%
      )
 ```
 
-##CONTESTO
+##Trend a confronto
 
-Come ultima analisi, cerchiamo di capire su che argomenti hanno puntato le fake news e se hanno seguito il trend delle notizie più in voga del momento
+Come ultima analisi, valuto gli argomenti su cui hanno puntato le fake news e se hanno seguito il trend delle notizie più in voga del momento.
 
 ```{r}
 library(tidytext)
@@ -397,8 +392,8 @@ text_mining_t_tweets %>%
 
 ```
 
-Entrambi i tipi di notizia si focalizzano sulla questione COVID-19 e hanno argomenti molto simili tra di loro. Le fake news però si concentrano più sulla politica e i rapporti con gli altri paesi ("MES", "Trump", "Germania", "Cina", etc...), mentre le altre notizie più sul virus in sé e sull'effetto in italia ("Coronavirus", "Lombardia", "Fase", etc...)
-Con questo possiamo dire che più che seguire passo-passo il trend delle notizie verificate, le fake news hanno sfruttato altri avvenimenti contemporanei per fare più click
+Entrambi i tipi di notizia si focalizzano sulla questione COVID-19 e hanno argomenti molto simili tra di loro. Le fake news però si concentrano più sulla politica e i rapporti con gli altri paesi ("MES", "Trump", "Germania", "Cina", etc...), mentre le altre notizie più sul virus e sul suo effetto in Italia ("Coronavirus", "Lombardia", "Fase", etc...)
+Da questo si deduce che più che seguire passo-passo il trend delle notizie verificate, le fake news hanno cavalcato altri avvenimenti attuali per fare più click.
 
 
 ```{r}
