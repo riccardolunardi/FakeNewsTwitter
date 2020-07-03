@@ -70,7 +70,7 @@ stream_tweets(
 
 ```
 
-Il file prodotto dalla funzione _stream_tweets_ è un documento che raccoglie più JSON, uno per tweet raccolto. Avendo avuto solo qualche mese per raccogliere i dati, ogni giorno facevo ripartire lo streaming per evitare possibili bug o stalli dello script, per cui alla fine ho ottenuto un insieme di JSON, ognuno rinominato con il giorno in cui è stato creato.
+Il file prodotto dalla funzione `stream_tweets` è un documento che raccoglie più JSON, uno per tweet raccolto. Avendo avuto solo qualche mese per raccogliere i dati, ogni giorno facevo ripartire lo streaming per evitare possibili bug o stalli dello script, per cui alla fine ho ottenuto un insieme di JSON, ognuno rinominato con il giorno in cui è stato creato.
 
 Per trasformare il JSON in un dataframe ho utilizzato la funzione parse_stream di rtweet, che automatizza questo processo. La funzione però accetta solo un file per volta, quindi ho creato un array in cui ogni elemento era un path di JSON e iterare la cosidetta funzione per ogni file.
 
@@ -116,7 +116,7 @@ for (i in 1:length(every_json_path)) {
 
 ```
 
-I giorni che ho rimosso sono giorni in cui lo script si è bloccato, il server ha interrotto lo streaming oppure sono dati che sono inclusi nel file del giorno precedente.
+I file relativi ad alcuni giorni sono stati rimossi per i seguenti motivi: lo script si è bloccato, il server ha interrotto lo streaming, i dati mancanti sono inclusi nel file del giorno precedente.
 
 Ottenuta la lista _stream_analizzate_, contenente un dataset per ogni giorno, utilizzo `do.call`, che mi permette di usare `rbind` su una lista, in modo da unirle tutti gli elementi in uno stesso dataframe.
 
@@ -156,7 +156,7 @@ Sarebbe comodo ed efficiente avere solo il secondo dataset, ma così si perdereb
 
 E' necessario quindi effettuare il conteggio dei retweet perché lo streaming ritorna il numero corrente di retweet, che ovviamente all'inizio è 0. Avendo anche i retweet, però, è possibile calcolarlo.
 
-Qui creo il dataframe del punto (1)
+Qui creo il dataframe del punto **(1)**
 
 ```{r Primo dataframe, echo=TRUE}
 library(dplyr)
@@ -170,7 +170,7 @@ nrow(clean_tweets)
 object.size(clean_tweets)
 ```
 
-Mentre qui il dataframe (2)
+Mentre qui il dataframe **(2)**
 
 ```{r Secondo dataframe, echo=TRUE}
 
@@ -251,7 +251,7 @@ In questa fase utilizzo il dataframe contente tweet e retweet, visto che è nece
 library(ggplot2)
 
 tweets_data_for_plotting_affidabili <- tidy_tweets %>%
-  filter(as.Date(created_at)>"2020-04-22") %>%
+  filter(as.Date(created_at)>"2020-04-22", as.Date(created_at)>"2020-07-02") %>%
   mutate(created_at=substr(created_at,0,10),
          categoria=if_else(is_affidabile && is_retweet,
                     "affidabile_retweet",
@@ -304,7 +304,8 @@ Per l'analisi del sentiment ho usato [TextWiller](https://github.com/livioivil/T
 
 Utilizzando la funzione `sentiment(text)`, viene fatta una normalizzazione del testo e calcolato un punteggio: -1 (Negativo), 0 (Neutrale), 1 (Positivo), in base alla possibilità o meno di esprimere un'emozione.
 Applicando questa funzione al dataset si comprende che emozione condivide il titolo dell'articolo e/o il testo aggiunto dall'utente prima di twittare.
-Il costo computazionale di questo calcolo è molto alto: con il mio Intel i5-4590 la parte di codice sottostante impiega quasi 8 minuti per completarsi.
+
+Il costo computazionale di questo calcolo è molto alto: ad esempio un Intel i5-4590 impiega quasi 8 minuti a elaborare la parte di codice sottostante.
 
 ```{r Analisi del sentiment, echo=FALSE, message=FALSE, warning=FALSE}
 library(TextWiller)
@@ -320,7 +321,7 @@ tweets_with_retweet_number_upd <- tweets_with_retweet_number_upd %>%
 #View(tweets_with_retweet_number_upd)
 
 tweets_with_retweet_number_upd_plot <- tweets_with_retweet_number_upd %>%
-  filter(as.Date(created_at)>"2020-04-22")
+  filter(as.Date(created_at)>"2020-04-22", as.Date(created_at)>"2020-07-02")
 
 ggplot(tweets_with_retweet_number_upd_plot) +
   geom_bar(aes(x = sentiment, fill = is_affidabile), position = position_dodge()) +
@@ -390,6 +391,7 @@ text_mining_t_tweets %>%
 Entrambi i tipi di notizia si focalizzano sulla questione COVID-19 e hanno argomenti molto simili tra di loro. Le fake news però si concentrano più sulla politica e i rapporti con gli altri paesi ("MES", "Trump", "Germania", "Cina", etc...), mentre le altre notizie più sul virus e sul suo effetto in Italia ("Coronavirus", "Lombardia", "Fase", etc...)
 Da questo si deduce che più che seguire passo-passo il trend delle notizie verificate, le fake news hanno cavalcato altri avvenimenti attuali per fare più click.
 
+Ho scelto di trattare le fake news poiché è un argomento che mi incuriosisce molto; mi sarei aspettato che questo tipo di notizie si diffondessero con maggior frequenza. Ho invece constatato che, almeno per Twitter, sembra non essere così.
 
 ```{r Dummy section, eval=FALSE, message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
 
