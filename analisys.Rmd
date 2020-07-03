@@ -1,12 +1,12 @@
 ---
-title: "FakeNews on Twitter"
+title: "Fake news su Twitter"
 output: html_document
 editor_options: 
   chunk_output_type: inline
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(cache = TRUE, message = FALSE, warning = FALSE)
+knitr::opts_chunk$set(cache = TRUE, message = FALSE, warning = FALSE, cache.lazy = FALSE)
 ```
 
 Durante il periodo di lockdown mi sono chiesto quanto le fake news influenzassero le opinioni delle persone e quanto frequenti fossero le condivisioni di notizie false o ingannevoli sul Web. Quindi, come caso di studio, ho scelto di prendere in causa Twitter e raccogliere più informazioni possibili sui tweet condivisi in questo periodo per rispondere ad alcune domande che mi sono posto.
@@ -23,7 +23,7 @@ Le domande che mi sono posto sono:
 
 Prima di poter rispondere a questi questiti, ho dovuto raccogliere i dati e "ripulirli" per cercare di ridurre le dimensioni del mio dataset
 
-##Come ho costruito il dataset
+## Come ho costruito il dataset
 
 Il dataset è stato costruito utilizzando la libreria [rtweet](https://rtweet.info/), che permette di interfacciarsi con le API di Twitter tramite R.
 In particolare ho usato l'endpoint [statuses/filter](https://developer.twitter.com/en/docs/tweets/filter-realtime/api-reference/post-statuses-filter), che ritorna, per un determinato periodo di tempo, i tweets che rispettano alcuni parametri preimpostati.
@@ -74,7 +74,7 @@ Il file prodotto dalla funzione _stream_tweets_ è un documento che raccoglie pi
 
 Per trasformare il JSON in un dataframe ho utilizzato la funzione parse_stream di rtweet, che automatizza questo processo. La funzione però accetta solo un file per volta, quindi ho creato un array in cui ogni elemento era un path di JSON e iterare la cosidetta funzione per ogni file.
 
-```{r}
+```{r Raccolta dei dati, echo=TRUE}
 library(rtweet)
 library(stringr)
 library(readr)
@@ -96,11 +96,11 @@ april=c(get_tweets_by_date("2020-04-22",9),("data/day2020-04-24-01.json"))
 
 #Sequenza dei giorni di maggio - 2 giorni
 may=get_tweets_by_date("2020-05-01",31)
-may=may[!may %in% c("data/day2020-05-24.json","data/day2020-05-05.json")] #Tolgo questi due giorni per un errore di esecuzione dello script
+may=may[!may %in% c("data/day2020-05-24.json","data/day2020-05-05.json")]
 
 #Sequenza dei giorni di aprile + doppione
 june=get_tweets_by_date("2020-06-01",29)
-june=june[!june %in% c("data/day2020-06-19.json", "data/day2020-06-24.json", "data/day2020-06-06.json", "data/day2020-06-05.json")] #Tolgo questo giorno perché è incluso nel file day2020-06-19.json
+june=june[!june %in% c("data/day2020-06-19.json", "data/day2020-06-24.json", "data/day2020-06-06.json", "data/day2020-06-05.json")]
 
 every_json_path = c(april, may, june) #Unione dei vettori
 
@@ -116,9 +116,11 @@ for (i in 1:length(every_json_path)) {
 
 ```
 
+I giorni che ho rimosso sono giorni in cui lo script si è bloccato, il server ha interrotto lo streaming oppure sono dati che sono inclusi nel file del giorno precedente.
+
 Ottenuta la lista _stream_analizzate_, contenente un dataset per ogni giorno, utilizzo `do.call`, che mi permette di usare `rbind` su una lista, in modo da unirle tutti gli elementi in uno stesso dataframe.
 
-```{r}
+```{r Generazione dataset, echo=TRUE}
 #Applico rbind alla lista di dataframe
 everytweet <- do.call("rbind", stream_analizzate)
 
@@ -140,7 +142,7 @@ Tra i 90 campi del dataset, solo alcuni di questi sono utili a rispondere alle d
 
 _campi\_utili_ conterrà solo gli attributi necessari
 
-```{r}
+```{r Campi utili, echo=TRUE}
 campi_utili = c("user_id","status_id","created_at","screen_name","text", 
                 "urls_url", "urls_expanded_url","retweet_status_id","retweet_text",
                 "retweet_user_id","is_retweet")
@@ -156,7 +158,7 @@ E' necessario quindi effettuare il conteggio dei retweet perché lo streaming ri
 
 Qui creo il dataframe del punto (1)
 
-```{r}
+```{r Primo dataframe, echo=TRUE}
 library(dplyr)
 library(anytime)
 
@@ -170,7 +172,7 @@ object.size(clean_tweets)
 
 Mentre qui il dataframe (2)
 
-```{r}
+```{r Secondo dataframe, echo=TRUE}
 
 #Ottengo solo retweet
 retweets <- everytweet %>%
@@ -225,7 +227,7 @@ Se avessi usato `right_join` avrei avuto solo i tweet che sono stati condivisi e
 
 Ora emerge la necessità di aggiungere un campo al dataframe che evidenzi in modo veloce se la notizia proviene da una fonte affidabile o no.
 
-```{r}
+```{r Creazione del campo di affidabilità, echo=TRUE}
 #Leggiamo i siti non affidabili dal file dedicato e creiamo un vettore con questi siti
 link_siti_non_affidabili <- "websites/websites_fakenews.txt"
 siti_non_affidabili <- read.delim(link_siti_non_affidabili, sep = "\n", header = FALSE)
@@ -245,7 +247,7 @@ Dal risultato ottenuto appare evidente che le notizie false sono in netta minora
 Creando un grafico a barre, diviso per giorni, è ben visibile il rapporto che hanno le fake news rispetto alle notizie che provengono da fonti affidabili.
 In questa fase utilizzo il dataframe contente tweet e retweet, visto che è necessario sapere anche **quando** è avvenuto un retweet
 
-```{r}
+```{r Grafico n°1, fig.width=18, fig.height=12, echo=TRUE}
 library(ggplot2)
 
 tweets_data_for_plotting_affidabili <- tidy_tweets %>%
@@ -267,8 +269,6 @@ ggplot(tweets_data_for_plotting_affidabili) +
   scale_x_date(date_labels = "%m-%d", date_breaks = "2 days") +
   theme_minimal()
 
-#View(tweets_data_for_plotting_affidabili %>% filter(!is_affidabile))
-
 ```
 
 Come dimostrato dal precedente risultato, le fake news vengono tweetate e retweetate molto meno rispetto alle altre. 
@@ -279,8 +279,7 @@ Dopo la fase di quarantena il numero di fake news si è assestato ed è sempre r
 
 Segue la presentazione grafica dei dati in percentuale per ogni giorno
 
-```{r}
-
+```{r Grafico n°2, fig.width=18, fig.height=12, echo=TRUE}
 tweets_data_for_plotting_affidabili2 <- tweets_data_for_plotting_affidabili %>%
   count(created_at, is_affidabile) %>%
   group_by(created_at) %>%
@@ -305,9 +304,9 @@ Per l'analisi del sentiment ho usato [TextWiller](https://github.com/livioivil/T
 
 Utilizzando la funzione `sentiment(text)`, viene fatta una normalizzazione del testo e calcolato un punteggio: -1 (Negativo), 0 (Neutrale), 1 (Positivo), in base alla possibilità o meno di esprimere un'emozione.
 Applicando questa funzione al dataset si comprende che emozione condivide il titolo dell'articolo e/o il testo aggiunto dall'utente prima di twittare.
+Il costo computazionale di questo calcolo è molto alto: con il mio Intel i5-4590 la parte di codice sottostante impiega quasi 8 minuti per completarsi.
 
-
-```{r}
+```{r Analisi del sentiment, echo=FALSE, message=FALSE, warning=FALSE}
 library(TextWiller)
 
 tweets_with_retweet_number_upd <- tweets_with_retweet_number %>%
@@ -330,10 +329,6 @@ ggplot(tweets_with_retweet_number_upd_plot) +
   scale_fill_manual(values=c("#f2a71d", "#1da1f2"), name="Tweets", labels=c("Non affidabili","Affidabili")) +
   theme_minimal()
 
-#sprintf("Positivi: %d, Neutrali: %d, Negativi: %d",nrow(tweets_with_retweet_number_upd %>% filter(sentiment==1, !is_affidabile)), 
-#      nrow(tweets_with_retweet_number_upd %>% filter(sentiment==0, !is_affidabile)), 
-#      nrow(tweets_with_retweet_number_upd %>% filter(sentiment==-1, !is_affidabile)))
-
 
 ```
 
@@ -355,7 +350,7 @@ View(tweets_with_retweet_number_upd %>%
 
 Come ultima analisi, valuto gli argomenti su cui hanno puntato le fake news e se hanno seguito il trend delle notizie più in voga del momento.
 
-```{r}
+```{r Generazione wordclouds, echo=TRUE}
 library(tidytext)
 library(wordcloud)
 library(tm)
@@ -396,7 +391,7 @@ Entrambi i tipi di notizia si focalizzano sulla questione COVID-19 e hanno argom
 Da questo si deduce che più che seguire passo-passo il trend delle notizie verificate, le fake news hanno cavalcato altri avvenimenti attuali per fare più click.
 
 
-```{r}
+```{r Dummy section, eval=FALSE, message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
 
 ```
 
