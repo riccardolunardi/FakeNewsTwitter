@@ -98,11 +98,14 @@ april=c(get_tweets_by_date("2020-04-22",9),("data/day2020-04-24-01.json"))
 may=get_tweets_by_date("2020-05-01",31)
 may=may[!may %in% c("data/day2020-05-24.json","data/day2020-05-05.json")]
 
-#Sequenza dei giorni di aprile + doppione
-june=get_tweets_by_date("2020-06-01",29)
+#Sequenza dei giorni di giugno
+june=get_tweets_by_date("2020-06-01",30)
 june=june[!june %in% c("data/day2020-06-19.json", "data/day2020-06-24.json", "data/day2020-06-06.json", "data/day2020-06-05.json")]
 
-every_json_path = c(april, may, june) #Unione dei vettori
+#Sequenza dei giorni di luglio
+july=get_tweets_by_date("2020-07-01",2)
+
+every_json_path = c(april, may, june, july) #Unione dei vettori
 
 # Creo un vettore con lunghezza predefinita
 stream_analizzate <- vector("list",length(every_json_path))  
@@ -251,7 +254,7 @@ In questa fase utilizzo il dataframe contente tweet e retweet, visto che è nece
 library(ggplot2)
 
 tweets_data_for_plotting_affidabili <- tidy_tweets %>%
-  filter(as.Date(created_at)>"2020-04-22", as.Date(created_at)>"2020-07-02") %>%
+  filter(as.Date(created_at)>"2020-04-22", as.Date(created_at)<"2020-07-03") %>%
   mutate(created_at=substr(created_at,0,10),
          categoria=if_else(is_affidabile && is_retweet,
                     "affidabile_retweet",
@@ -307,7 +310,7 @@ Applicando questa funzione al dataset si comprende che emozione condivide il tit
 
 Il costo computazionale di questo calcolo è molto alto: ad esempio un Intel i5-4590 impiega quasi 8 minuti a elaborare la parte di codice sottostante.
 
-```{r Analisi del sentiment, echo=FALSE, message=FALSE, warning=FALSE}
+```{r Analisi del sentiment, echo=TRUE, message=FALSE, warning=FALSE}
 library(TextWiller)
 
 tweets_with_retweet_number_upd <- tweets_with_retweet_number %>%
@@ -321,7 +324,7 @@ tweets_with_retweet_number_upd <- tweets_with_retweet_number_upd %>%
 #View(tweets_with_retweet_number_upd)
 
 tweets_with_retweet_number_upd_plot <- tweets_with_retweet_number_upd %>%
-  filter(as.Date(created_at)>"2020-04-22", as.Date(created_at)>"2020-07-02")
+  filter(as.Date(created_at)>"2020-04-22")
 
 ggplot(tweets_with_retweet_number_upd_plot) +
   geom_bar(aes(x = sentiment, fill = is_affidabile), position = position_dodge()) +
@@ -340,12 +343,6 @@ La neutralità indica notizie che sono postate solamente con il titolo e quest'u
 
 L'analisi del sentiment attraverso un vocabolario va sempre trattata con cautela, perché ad esempio non considera il sarcasmo o insiemi di parole; in più il testo che elabora è molto poco: una o due frasi al massimo per tweet. Detto questo, ritengo sia comunque un'analisi affidabile visto i risultati ottenuti.
 
-```{r Controllo sentimento (manuale), eval=FALSE, include=FALSE}
-View(tweets_with_retweet_number_upd %>% 
-       select(text, is_affidabile, sentiment) %>%
-       filter(is_affidabile, sentiment==0)
-     )
-```
 
 ##Trend a confronto
 
@@ -356,7 +353,7 @@ library(tidytext)
 library(wordcloud)
 library(tm)
 
-stop_words_extra = c("t.co","https","lkhl0j1pqm","wgyypsdiqo","lkhl0ike2c","tpm3unabk9","amp","2","uc8qrmsbx2","weieh1n3qy","wxsqwmbw67","33iqc7xzjo","fispjyrtyw","bgfnwd339h","rxmeve8hzy","lty4aseqyc","wdfy92x5rd","ykmiyz3fm3")
+stop_words_extra = c("t.co","https","lkhl0j1pqm","wgyypsdiqo","lkhl0ike2c","tpm3unabk9","amp","2","uc8qrmsbx2","weieh1n3qy","wxsqwmbw67","33iqc7xzjo","fispjyrtyw","bgfnwd339h","rxmeve8hzy","lty4aseqyc","wdfy92x5rd","ykmiyz3fm3","newsnetworkpn","gcnwxiujfy")
 stop_words_vector= append(stop_words_extra, stopwords(kind = "it"), after = length(stop_words_extra))
 stop_words_ita = data.frame(word = stop_words_vector)
 
